@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+.venv/
+venv/
+node_modules/
+.DS_Store
+# offline vendor copies are downloaded with fetch_vendor.py
+skill/code-flow-visualizer/assets/vendor/*.js
+skill/code-flow-visualizer/assets/vendor/*.css

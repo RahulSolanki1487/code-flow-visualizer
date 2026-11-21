@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Render sample flow",
+      "type": "shell",
+      "command": "python skill/code-flow-visualizer/scripts/validate_flow.py examples/sample-flow.json --repo examples/sample-express-app && python skill/code-flow-visualizer/scripts/render_page.py examples/sample-flow.json -o examples/sample-flow.html",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    { "label": "Run tests", "type": "shell", "command": "python -m pytest -q", "group": "test", "problemMatcher": [] },
+    { "label": "Package skill", "type": "shell", "command": "python tools/package_skill.py", "problemMatcher": [] }
+  ]
+}

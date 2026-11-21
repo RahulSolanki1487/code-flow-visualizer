@@ -1,0 +1,94 @@
+{
+  "project": "sample-express-app",
+  "generated_at": "2026-11-20",
+  "flows": [
+    {
+      "id": "create_order",
+      "title": "POST /api/orders – place order",
+      "mode": "code",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "Authenticates the caller, reserves stock, charges the card through the payment service and saves the order. Out-of-stock returns 409; other failures return 500.",
+      "entry": "route",
+      "nodes": [
+        { "id": "route", "label": "POST /api/orders", "type": "entry", "file": "src/routes/orders.js", "line": 5,
+          "description": "Router mounted under /api in app.js. Runs the auth middleware, then the create controller.",
+          "snippet": "router.post('/orders', auth, ordersController.create);" },
+        { "id": "auth", "label": "auth middleware", "type": "decision", "file": "src/middleware/auth.js", "line": 1,
+          "description": "Checks for an Authorization header and sets req.user. No token means the request stops with 401.",
+          "snippet": "if (!token) {\n  return res.status(401).json({ error: 'unauthorized' });\n}" },
+        { "id": "unauthorized", "label": "401 Unauthorized", "type": "error", "file": "src/middleware/auth.js", "line": 4,
+          "description": "Request rejected before reaching the controller." },
+        { "id": "create_ctrl", "label": "ordersController.create", "type": "logic", "file": "src/controllers/ordersController.js", "line": 3,
+          "description": "Calls placeOrder with the user id and cart items, and maps errors to HTTP status codes.",
+          "snippet": "const order = await orderService.placeOrder(req.user.id, req.body.items);\nres.status(201).json(order);" },
+        { "id": "place_order", "label": "orderService.placeOrder", "type": "logic", "file": "src/services/orderService.js", "line": 5,
+          "description": "Core business logic: reserve stock, compute total, charge, then persist." },
+        { "id": "reserve", "label": "inventoryRepo.reserve", "type": "data", "file": "src/repositories/inventoryRepo.js", "line": 3,
+          "description": "Runs one conditional UPDATE per item. Returns true only if every item was reserved.",
+          "snippet": "return results.every(r => r.rowCount === 1);" },
+        { "id": "stock_ok", "label": "All items available?", "type": "decision", "file": "src/services/orderService.js", "line": 7,
+          "description": "If any reservation failed, throws an OUT_OF_STOCK error." },
+        { "id": "out_of_stock", "label": "409 Out of stock", "type": "error", "file": "src/controllers/ordersController.js", "line": 9,
+          "description": "Controller catches err.code === 'OUT_OF_STOCK' and responds with 409.",
+          "note": "Reserved stock for other items in the same order is not released. Possible inventory leak." },
+        { "id": "charge", "label": "paymentClient.charge", "type": "external", "file": "src/clients/paymentClient.js", "line": 3,
+          "description": "POSTs to the payment service at PAYMENT_URL/charges. Throws if the response is not OK." },
+        { "id": "payment_api", "label": "Payment service", "type": "external",
+          "description": "Third-party HTTP API. The URL comes from the PAYMENT_URL env var.",
+          "inferred": true, "note": "Behaviour depends on environment configuration; not visible in this repo." },
+        { "id": "save", "label": "orderRepo.save", "type": "data", "file": "src/repositories/orderRepo.js", "line": 3,
+          "description": "Inserts the order row and returns it." },
+        { "id": "created", "label": "201 Created", "type": "entry", "file": "src/controllers/ordersController.js", "line": 6,
+          "description": "Order JSON returned to the client." },
+        { "id": "server_error", "label": "500 Internal error", "type": "error", "file": "src/controllers/ordersController.js", "line": 11,
+          "description": "Any other failure, e.g. a payment error, ends here.",
+          "note": "If the charge succeeds but save fails, the customer is charged with no order stored." }
+      ],
+      "edges": [
+        { "from": "route", "to": "auth", "label": "middleware" },
+        { "from": "auth", "to": "unauthorized", "label": "no token", "kind": "error" },
+        { "from": "auth", "to": "create_ctrl", "label": "next()" },
+        { "from": "create_ctrl", "to": "place_order", "label": "await" },
+        { "from": "place_order", "to": "reserve", "label": "await" },
+        { "from": "reserve", "to": "stock_ok" },
+        { "from": "stock_ok", "to": "out_of_stock", "label": "no", "kind": "error" },
+        { "from": "stock_ok", "to": "charge", "label": "yes" },
+        { "from": "charge", "to": "payment_api", "label": "HTTP POST", "inferred": true },
+        { "from": "charge", "to": "server_error", "label": "payment failed", "kind": "error" },
+        { "from": "charge", "to": "save", "label": "paid" },
+        { "from": "save", "to": "created" }
+      ],
+      "notes": [
+        "No database transaction wraps reserve → charge → save.",
+        "No retry or idempotency key on the payment call."
+      ]
+    },
+    {
+      "id": "create_order_seq",
+      "title": "POST /api/orders – sequence view",
+      "mode": "code",
+      "diagram": "sequence",
+      "summary": "The same request as a sequence diagram (happy path plus the out-of-stock branch).",
+      "entry": "client",
+      "participants": ["client", "ctrl", "svc", "inv", "pay", "orders"],
+      "nodes": [
+        { "id": "client", "label": "Client", "type": "ui", "description": "Any HTTP caller.", "file": "src/routes/orders.js", "line": 5 },
+        { "id": "ctrl", "label": "OrdersController", "type": "logic", "file": "src/controllers/ordersController.js", "line": 3, "description": "HTTP layer." },
+        { "id": "svc", "label": "OrderService", "type": "logic", "file": "src/services/orderService.js", "line": 5, "description": "Business logic." },
+        { "id": "inv", "label": "InventoryRepo", "type": "data", "file": "src/repositories/inventoryRepo.js", "line": 3, "description": "Stock reservations." },
+        { "id": "pay", "label": "PaymentClient", "type": "external", "file": "src/clients/paymentClient.js", "line": 3, "description": "Payment HTTP client." },
+        { "id": "orders", "label": "OrderRepo", "type": "data", "file": "src/repositories/orderRepo.js", "line": 3, "description": "Order persistence." }
+      ],
+      "edges": [
+        { "from": "client", "to": "ctrl", "label": "POST /api/orders" },
+        { "from": "ctrl", "to": "svc", "label": "placeOrder(userId, items)" },
+        { "from": "svc", "to": "inv", "label": "reserve(items)" },
+        { "from": "inv", "to": "svc", "label": "true / false", "inferred": true },
+        { "from": "svc", "to": "pay", "label": "charge(userId, total)" },
+        { "from": "svc", "to": "orders", "label": "save(order)" },
+        { "from": "ctrl", "to": "client", "label": "201 / 409 / 500", "inferred": true }
+      ]
+    }
+  ]
+}

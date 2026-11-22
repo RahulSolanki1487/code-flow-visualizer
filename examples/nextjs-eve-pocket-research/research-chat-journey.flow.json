@@ -1,0 +1,71 @@
+{
+  "project": "zazencodes-season-3 / eve-pocket-research (Next.js)",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "research_chat_journey",
+      "title": "Research chat journey (Next.js App Router)",
+      "mode": "user",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "Every request first passes HTTP Basic auth in proxy.ts. The home page lists research items and shows an empty chat. Sending the first message creates a session and silently rewrites the URL to /s/<id>, which can later be reopened to resume the conversation. 'New research' returns to /.",
+      "entry": "visit",
+      "nodes": [
+        { "id": "visit", "label": "Open the app", "type": "ui", "file": "src/eve-pocket-research/proxy.ts", "line": 6,
+          "description": "The proxy runs on every route except eve/, _next/static and _next/image, so the browser first has to satisfy Basic auth.",
+          "snippet": "export function proxy(request: NextRequest) {" },
+        { "id": "basic_auth", "label": "Basic auth ok?", "type": "decision", "file": "src/eve-pocket-research/proxy.ts", "line": 16,
+          "description": "Compares the Authorization header with BASIC_AUTH_USERNAME/PASSWORD from the environment.",
+          "snippet": "const result = verifyHttpBasic(request.headers.get(\"authorization\"), basicAuthCredentials());" },
+        { "id": "unauthorized", "label": "401 + login prompt", "type": "error", "file": "src/eve-pocket-research/proxy.ts", "line": 18,
+          "description": "Without valid credentials the browser shows its native Basic-auth dialog (WWW-Authenticate header, realm 'Pocket Research').",
+          "snippet": "return new NextResponse(\"Authentication required\", {" },
+        { "id": "home", "label": "Home: empty chat + research list", "type": "ui", "file": "src/eve-pocket-research/app/page.tsx", "line": 6,
+          "description": "Server component (force-dynamic) that loads research items and renders AgentChat without a sessionId.",
+          "snippet": "const researchItems = await listResearchItems();\n  return <AgentChat researchItems={researchItems} />;" },
+        { "id": "send", "label": "User sends a message", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 91,
+          "description": "handleSubmit ignores empty input and input while resuming, then calls agent.send. If a turn is already running the message is sent with the 'steer' policy.",
+          "snippet": "const handleSubmit = async (message: PromptInputMessage) => {" },
+        { "id": "session_created", "label": "URL becomes /s/<id>", "type": "decision", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 52,
+          "description": "On the first session change the URL is rewritten with History.replaceState, not router navigation, because Next's navigation would detach the active stream.",
+          "snippet": "onSessionChange(session) {" },
+        { "id": "streaming", "label": "Answer streams in", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 72,
+          "description": "While the status is 'submitted' or 'streaming' the chat shows a thinking indicator and live messages." },
+        { "id": "cancel", "label": "User cancels", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 84,
+          "description": "Calls agent.cancel(). If that fails, the error is shown in the chat.",
+          "snippet": "void agent.cancel().catch((error: unknown) => {" },
+        { "id": "turn_error", "label": "Error message shown", "type": "error", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 230,
+          "description": "Cancellation errors, agent errors and failed turns are all shown by ErrorMessage.",
+          "snippet": "function ErrorMessage({ message }: { readonly message: string }) {" },
+        { "id": "resume", "label": "Reopen /s/<id>", "type": "ui", "file": "src/eve-pocket-research/app/s/[sessionId]/page.tsx", "line": 3,
+          "description": "The session page passes the id to AgentChat, which resumes the stream from index 0.",
+          "snippet": "return <AgentChat sessionId={sessionId} />;" },
+        { "id": "new_research", "label": "Click 'New research'", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 258,
+          "description": "A full page load of / (window.location.assign), starting a fresh session.",
+          "snippet": "onClick={() => window.location.assign(\"/\")}" }
+      ],
+      "edges": [
+        { "from": "visit", "to": "basic_auth" },
+        { "from": "basic_auth", "to": "unauthorized", "label": "no", "kind": "error" },
+        { "from": "unauthorized", "to": "basic_auth", "label": "enters credentials" },
+        { "from": "basic_auth", "to": "home", "label": "yes" },
+        { "from": "home", "to": "send", "label": "types a question" },
+        { "from": "send", "to": "session_created", "label": "first message" },
+        { "from": "session_created", "to": "streaming", "label": "URL rewritten" },
+        { "from": "streaming", "to": "cancel", "label": "clicks stop" },
+        { "from": "streaming", "to": "turn_error", "label": "fails", "kind": "error" },
+        { "from": "cancel", "to": "turn_error", "label": "cancel fails", "kind": "error" },
+        { "from": "streaming", "to": "send", "label": "asks follow-up" },
+        { "from": "streaming", "to": "resume", "label": "reloads later" },
+        { "from": "resume", "to": "streaming", "label": "stream resumes" },
+        { "from": "streaming", "to": "new_research", "label": "wants a new topic" },
+        { "from": "new_research", "to": "home" }
+      ],
+      "notes": [
+        "There is no router config or login page: the only 'screens' are / and /s/[sessionId], both rendering AgentChat.",
+        "What the agent does after agent.send (eve runtime, research tools) was not traced; this is the browser-side journey only.",
+        "app/_components/research-list.tsx (the clickable research items on the home page) was not read."
+      ]
+    }
+  ]
+}

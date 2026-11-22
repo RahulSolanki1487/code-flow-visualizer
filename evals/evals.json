@@ -10,31 +10,324 @@
         "page renders with no Mermaid error",
         "401, 409 and 500 error paths are present",
         "payment service edge is marked inferred"
+      ],
+      "repo": "examples/sample-express-app",
+      "golden": {
+        "flow": "examples/sample-flow.json",
+        "repo": "examples/sample-express-app"
+      },
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "mermaid_parses"
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mentions",
+          "param": [
+            "401",
+            "409",
+            "500",
+            "payment",
+            "inventory"
+          ]
+        },
+        {
+          "check": "inferred_has_note"
+        },
+        {
+          "check": "max_nodes",
+          "param": 40
+        }
       ]
     },
     {
       "id": 2,
       "prompt": "I just joined this team. Give me a visual of the main request flows in this repo so I can onboard.",
       "expected_output": "Skill lists entry points, picks or asks for 1–3 flows, produces one page with several flows in the sidebar",
-      "assertions": ["uses find_entry_points.py", "each flow under 40 nodes", "every node has file:line except external"]
+      "assertions": [
+        "uses find_entry_points.py",
+        "each flow under 40 nodes",
+        "every node has file:line except external"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "min_flows",
+          "param": 2
+        },
+        {
+          "check": "max_nodes",
+          "param": 40
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
     },
     {
       "id": 3,
       "prompt": "Draw the user journey from login to checkout in our React app as a Bootstrap page.",
       "expected_output": "mode=user flowchart of screens and user actions, from router config and navigate() calls",
-      "assertions": ["mode is 'user'", "nodes are mostly type 'ui' or 'decision'", "edges describe user actions"]
+      "assertions": [
+        "mode is 'user'",
+        "nodes are mostly type 'ui' or 'decision'",
+        "edges describe user actions"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "mode",
+          "param": "user"
+        },
+        {
+          "check": "share_of_types",
+          "param": {
+            "types": [
+              "ui",
+              "decision",
+              "error",
+              "external"
+            ],
+            "min": 0.8
+          }
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
     },
     {
       "id": 4,
       "prompt": "Make a sequence diagram page for what happens when the nightly sync job runs.",
       "expected_output": "diagram=sequence flow starting from the scheduler/cron entry",
-      "assertions": ["diagram is 'sequence'", "entry node is the job/scheduler", "external systems shown"]
+      "assertions": [
+        "diagram is 'sequence'",
+        "entry node is the job/scheduler",
+        "external systems shown"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "diagram",
+          "param": "sequence"
+        },
+        {
+          "check": "has_external"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
     },
     {
       "id": 5,
       "prompt": "This Spring Boot service uses a lot of dependency injection – explain the flow of GET /customers/{id} visually.",
       "expected_output": "flow with DI-resolved hops marked inferred and explained in notes",
-      "assertions": ["at least one inferred edge with a note", "repository/JPA layer shown", "no invented class names (all files exist)"]
+      "assertions": [
+        "at least one inferred edge with a note",
+        "repository/JPA layer shown",
+        "no invented class names (all files exist)"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "inferred_has_note"
+        },
+        {
+          "check": "mentions",
+          "param": [
+            "repository"
+          ]
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Show me the lifecycle of an invoice (Draft, Issued, Paid, Void) as a state diagram page.",
+      "expected_output": "diagram=state flow whose states and transitions match the status methods in the domain class",
+      "assertions": [
+        "diagram is 'state'",
+        "a forbidden transition is shown as an error",
+        "snippets exist in the cited files"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "diagram",
+          "param": "state"
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ],
+      "golden": {
+        "flow": "examples/dotnet-starter-kit/invoice-status.flow.json",
+        "repo": "../dotnet-starter-kit"
+      }
+    },
+    {
+      "id": 7,
+      "prompt": "Map the user journey of this Next.js app as a page.",
+      "expected_output": "mode=user flow from proxy/middleware auth through App Router pages and client navigation",
+      "assertions": [
+        "uses app/ pages and proxy/middleware as screens/decisions",
+        "error paths shown"
+      ],
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "mode",
+          "param": "user"
+        },
+        {
+          "check": "share_of_types",
+          "param": {
+            "types": [
+              "ui",
+              "decision",
+              "error",
+              "external"
+            ],
+            "min": 0.8
+          }
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ],
+      "golden": {
+        "flow": "examples/nextjs-eve-pocket-research/research-chat-journey.flow.json",
+        "repo": "../zazencodes-season-3"
+      }
+    },
+    {
+      "id": 8,
+      "prompt": "Draw the login-to-checkout journey of this Angular app, including the route guard.",
+      "expected_output": "mode=user flow: guarded route → login → returnUrl → cart → checkout with failure paths",
+      "assertions": [
+        "route guard shown as a decision",
+        "login and payment errors shown"
+      ],
+      "repo": "examples/sample-angular-app",
+      "golden": {
+        "flow": "examples/sample-angular-flow.json",
+        "repo": "examples/sample-angular-app"
+      },
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "mode",
+          "param": "user"
+        },
+        {
+          "check": "mentions",
+          "param": [
+            "guard",
+            "login",
+            "checkout"
+          ]
+        },
+        {
+          "check": "share_of_types",
+          "param": {
+            "types": [
+              "ui",
+              "decision",
+              "error",
+              "external"
+            ],
+            "min": 0.8
+          }
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Show the navigation flow of this Flutter app, from launch to the detail screen.",
+      "expected_output": "mode=user flow driven by the go_router redirect, with sign-in failure and sign-out paths",
+      "assertions": [
+        "router redirect shown as a decision",
+        "auth failure shown"
+      ],
+      "repo": "examples/sample-flutter-app",
+      "golden": {
+        "flow": "examples/sample-flutter-flow.json",
+        "repo": "examples/sample-flutter-app"
+      },
+      "checks": [
+        {
+          "check": "validates"
+        },
+        {
+          "check": "mode",
+          "param": "user"
+        },
+        {
+          "check": "mentions",
+          "param": [
+            "redirect",
+            "login",
+            "detail"
+          ]
+        },
+        {
+          "check": "share_of_types",
+          "param": {
+            "types": [
+              "ui",
+              "decision",
+              "error",
+              "external",
+              "logic"
+            ],
+            "min": 0.8
+          }
+        },
+        {
+          "check": "has_error_path"
+        },
+        {
+          "check": "mermaid_parses"
+        }
+      ]
     }
-  ]
+  ],
+  "_note": "Goldens whose repo is a sibling checkout (../dotnet-starter-kit, ../zazencodes-season-3) are validated against it when present; otherwise only the schema checks run."
 }

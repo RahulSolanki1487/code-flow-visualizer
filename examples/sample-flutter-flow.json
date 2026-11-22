@@ -1,0 +1,57 @@
+{
+  "project": "sample-flutter-app",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "login_and_browse",
+      "title": "Sign in and open an item (Flutter / go_router)",
+      "mode": "user",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "A global go_router redirect sends signed-out users to /login and signed-in users away from it. Signing in goes to the home list, tapping an item pushes the detail screen, and the floating button signs out.",
+      "entry": "launch",
+      "nodes": [
+        { "id": "launch", "label": "App launch", "type": "ui", "file": "lib/router.dart", "line": 7,
+          "description": "buildRouter starts at '/' and installs one redirect function that runs for every navigation.",
+          "snippet": "GoRouter buildRouter(AuthRepository auth) {" },
+        { "id": "redirect", "label": "Signed in?", "type": "decision", "file": "lib/router.dart", "line": 10,
+          "description": "Signed-out users going anywhere but /login are redirected to /login; signed-in users hitting /login go to /.",
+          "snippet": "if (!loggedIn && !goingToLogin) return '/login';" },
+        { "id": "login", "label": "Login screen", "type": "ui", "file": "lib/screens/login_screen.dart", "line": 13,
+          "description": "_submit calls AuthRepository.signIn.",
+          "snippet": "await authRepository.signIn(email, password);" },
+        { "id": "sign_in", "label": "AuthRepository.signIn", "type": "logic", "file": "lib/auth_repository.dart", "line": 6,
+          "description": "Rejects passwords shorter than 8 characters, otherwise stores a token.",
+          "snippet": "if (password.length < 8) {" },
+        { "id": "login_error", "label": "Show auth error", "type": "error", "file": "lib/screens/login_screen.dart", "line": 17,
+          "description": "AuthException is caught and its message shown; the user stays on the login screen.",
+          "snippet": "setState(() => error = e.message);" },
+        { "id": "home", "label": "Home list", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 4,
+          "description": "Lists items; tapping one pushes /item/<id>. The floating button signs out.",
+          "snippet": "class HomeScreen extends StatelessWidget {" },
+        { "id": "detail", "label": "Item detail", "type": "ui", "file": "lib/screens/detail_screen.dart", "line": 4,
+          "description": "Receives the id from the :id path parameter.",
+          "snippet": "class DetailScreen extends StatelessWidget {" },
+        { "id": "sign_out", "label": "Sign out", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 15,
+          "description": "Clears the token and navigates to /login.",
+          "snippet": "authRepository.signOut();" }
+      ],
+      "edges": [
+        { "from": "launch", "to": "redirect" },
+        { "from": "redirect", "to": "login", "label": "no: redirect /login" },
+        { "from": "redirect", "to": "home", "label": "yes" },
+        { "from": "login", "to": "sign_in", "label": "submits" },
+        { "from": "sign_in", "to": "home", "label": "ok: context.go('/')" },
+        { "from": "sign_in", "to": "login_error", "label": "AuthException", "kind": "error" },
+        { "from": "login_error", "to": "login", "label": "tries again" },
+        { "from": "home", "to": "detail", "label": "taps item" },
+        { "from": "home", "to": "sign_out", "label": "taps button" },
+        { "from": "sign_out", "to": "login" }
+      ],
+      "notes": [
+        "authRepository, email and password in login_screen.dart and home_screen.dart are undeclared in this trimmed sample; a real app would inject them (Provider/Riverpod).",
+        "The redirect reads auth.isLoggedIn but the router has no refreshListenable, so signing out does not re-run it; the explicit context.go('/login') does the navigation."
+      ]
+    }
+  ]
+}

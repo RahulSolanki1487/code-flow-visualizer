@@ -26,5 +26,9 @@
 - ORM lazy loading triggering queries
 
 ## User-flow mode tips
+- **Next.js:** pages are `app/**/page.tsx`; check `middleware.ts`/`proxy.ts` first (auth gates every route) and client-side navigation (`router.push`, `history.replaceState`, `window.location.assign`).
+- **Angular:** routes in `*.routes.ts`; guards (`canActivate`) are decisions; `navigate`/`navigateByUrl` and `returnUrl` query params are the edges.
+- **Flutter (go_router):** the global `redirect` is the main decision; `context.go/push` are the edges.
+- **React Router:** object routes (`createBrowserRouter`) or `<Route>`; wrapper elements like `ProtectedRoute` are decisions.
 - Nodes are screens (`ui`) and decisions (`decision`), edges are user actions ("taps Pay", "invalid OTP").
 - Get screens from the router config; get transitions from `navigate()/push()/redirect()` calls and form submit handlers.

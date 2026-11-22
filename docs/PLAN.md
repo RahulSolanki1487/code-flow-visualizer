@@ -91,16 +91,16 @@ docs/PLAN.md                    ← this file
 - [x] Entry-point heuristics ignore commented-out examples
 - [ ] Next: 2 more real repos (try a user flow and a background job), then auto-split
 
-### Phase 3 – Modes & frameworks (≈ 1 week) – mostly done
-- [~] User-flow mode tested on React/Next.js, Angular and Flutter apps (React done: dotnet-starter-kit dashboard login in `examples/dotnet-starter-kit/login-journey.flow.json`; Next.js, Angular, Flutter still untested)
+### Phase 3 – Modes & frameworks (≈ 1 week) ✅
+- [x] User-flow mode tested on React (dotnet-starter-kit dashboard login), Next.js (zazencodes eve-pocket-research chat journey), Angular and Flutter (small bundled sample apps `examples/sample-angular-app`, `examples/sample-flutter-app`; synthetic, not real-world codebases)
 - [x] Extend `find_entry_points.py` patterns (Go routers, Laravel, Rails, gRPC, Next.js pages, react-router object routes)
 - [x] State-diagram support (`diagram: "state"`), example: invoice lifecycle
 - [x] Optional "Open in VS Code" links (`render_page.py --repo`) (`vscode://file/<abs-path>:<line>`)
 
-### Phase 4 – Evals (2–3 days)
-- [ ] Use `evals/evals.json` with the skill-creator skill (with-skill vs without-skill)
-- [ ] Checks: every `file:line` real, page renders with no errors, key steps present, error paths shown
-- [ ] Tune the `description` in SKILL.md so the skill triggers for "explain/diagram/visualize this flow" requests
+### Phase 4 – Evals (2–3 days) – harness done, model runs pending
+- [ ] Use `evals/evals.json` with the skill-creator skill (with-skill vs without-skill). Not run yet: needs model runs per eval. Harness is ready: `python evals/run_evals.py --outputs DIR` (expects `DIR/eval-<id>/flow.json`)
+- [x] Checks: every `file:line` real, Mermaid parses, key steps present, error paths shown, inferred hops explained, node limits, mode/diagram type (`evals/flow_checks.py`, `python evals/run_evals.py --golden`; 9 evals, goldens for 1, 6, 7, 8, 9)
+- [~] Tune the `description` in SKILL.md so the skill triggers for "explain/diagram/visualize this flow" requests (description rewritten with trigger phrases and exclusions; `evals/trigger_queries.json` has 10 should/shouldn't queries, still to be run through skill-creator's description optimizer)
 
 ### Phase 5 – Packaging & distribution
 - [ ] `python tools/package_skill.py` → upload to Claude (Settings → Capabilities → Skills) or copy into `~/.claude/skills/` for Claude Code

@@ -23,8 +23,12 @@ PATTERNS = [
     ("fastapi/flask", "route", {".py"},
      r"""@\w+\.(get|post|put|patch|delete|route)\s*\(\s*['"]([^'"]+)"""),
     ("django", "route", {".py"}, r"""\b(?:re_)?path\s*\(\s*r?['"]([^'"]*)['"]\s*,\s*([\w.]+)"""),
+    # handler methods: verb, optional path, then the method name that follows the annotations
     ("spring", "route", {".java", ".kt"},
-     r"""@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(?\s*(?:value\s*=\s*)?['"]?([^'")]*)"""),
+     r"""@(Get|Post|Put|Patch|Delete)Mapping\s*(?:\(\s*(?:(?:value|path)\s*=\s*)?"?([^")]*)"?[^)]*\))?\s*(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+)?[\w<>\[\],.? ]+?\s+(\w+)\s*\("""),
+    # class-level prefix, reported separately so it is not mistaken for a route
+    ("spring", "prefix", {".java", ".kt"},
+     r"""@RequestMapping\s*\(\s*(?:(?:value|path)\s*=\s*)?"([^"]*)"\s*\)\s*(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+)?class\s+(\w+)"""),
     ("aspnet", "route", {".cs"}, r"""\[(HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*(?:\(\s*"([^"]*)"\s*\))?\]\s*(?:\[Route\(\s*"([^"]*)"\s*\)\]\s*)?(?:\[[^\]\n]*\]\s*)*(?:public\s+(?:async\s+)?[\w<>\[\],.? ]+?\s+(\w+)\s*\()?"""),
     ("aspnet-minimal", "route", {".cs"}, r"""\b\w+\.Map(Get|Post|Put|Patch|Delete)\s*\(\s*"([^"]+)\""""),
     ("react-router", "screen", {".jsx", ".tsx", ".js", ".ts"}, r"""<Route\b[^>]*\bpath\s*=\s*['"{]+([^'"}]+)"""),

@@ -57,7 +57,7 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 - Node ids: short, `snake_case`, unique.
 - Node `type` ∈ `entry, logic, data, external, decision, error, ui, event`.
 - Keep labels short (≤ 40 chars); put detail in `description`.
-- More than ~40 nodes → split into several flows in the same file (`flows[]`) and link them with `"link_to": "<flow_id>"`.
+- More than ~40 nodes → prefer scoping the flow down. If it must stay large, run `python scripts/split_flow.py flow.json -o flow.json` (splits flowchart/state flows into linked sub-flows; sequence flows are not split) or split by hand with `"link_to": "<flow_id>"`.
 
 ### 5. Validate
 ```bash
@@ -100,6 +100,7 @@ steps, and anything inferred or risky (from `notes`).
 - `templates/flow-page.html` – Bootstrap 5 + Mermaid page template (placeholders filled by the renderer)
 - `scripts/find_entry_points.py` – heuristics for routes/handlers/main across common stacks
 - `scripts/validate_flow.py` – schema + file:line checks
+- `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows
 - `scripts/render_page.py` – JSON → Mermaid → HTML
 - `scripts/check_mermaid.py` – optional Mermaid syntax check (Node)
 - `references/flow-schema.md` – the `flow.json` format

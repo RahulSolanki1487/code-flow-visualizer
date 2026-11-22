@@ -176,8 +176,12 @@
         }
       ],
       "run": {
-        "repo": null,
-        "note": "No suitable repo available locally (needs a Spring Boot service); not runnable here."
+        "repo": "../springboot-react",
+        "note": "The service has no /customers; use GET /v1/items/{itemId} as the flow."
+      },
+      "golden": {
+        "flow": "examples/springboot-react/update-item.flow.json",
+        "repo": "../springboot-react"
       }
     },
     {

@@ -82,14 +82,14 @@ docs/PLAN.md                    ← this file
 - [x] `render_page.py` (flowchart + sequence), `validate_flow.py`, `find_entry_points.py`
 - [x] Sample Express app + sample flow, unit tests
 
-### Phase 2 – Accuracy (3–4 days) – in progress
-- [ ] Run the skill on 3 real repos you know; compare the diagram with reality (2/3 so far: dotnet-starter-kit `POST /products`, see `examples/dotnet-starter-kit/`; PDIFAnalyticsAPI `POST /api/Assets/AddUpdateAsset`, kept private outside this repo)
+### Phase 2 – Accuracy (3–4 days) ✅
+- [x] Run the skill on 3 real repos; compare the diagram with reality (dotnet-starter-kit `POST /products`; PDIFAnalyticsAPI `POST /api/Assets/AddUpdateAsset`, kept private outside this repo; springboot-react `PUT /v1/items/{itemId}`)
 - [~] Tighten SKILL.md trace rules wherever Claude drew wrong or missing edges (cross-cutting pipeline, registration check, verbatim snippets added; continue per repo)
 - [x] Add a Mermaid parse check (`check_mermaid.py`, Node + mermaid + jsdom, optional) to catch syntax errors before delivery
-- [ ] Automatic splitting when a flow has > 40 nodes
+- [x] Automatic splitting when a flow has > 40 nodes (`split_flow.py`: head flow + linked sub-flows, back-links, tested on a 100-node chain and a 122-node fan-out)
 - [x] Snippet verification in `validate_flow.py` (snippet text must exist in the cited file, near the cited line)
 - [x] Entry-point heuristics ignore commented-out examples
-- [ ] Next: 2 more real repos (try a user flow and a background job), then auto-split
+- [x] Third real repo: springboot-react `PUT /v1/items/{itemId}` (`examples/springboot-react/`); Spring entry-point output fixed (verb, path, method name, class prefix)
 
 ### Phase 3 – Modes & frameworks (≈ 1 week) ✅
 - [x] User-flow mode tested on React (dotnet-starter-kit dashboard login), Next.js (zazencodes eve-pocket-research chat journey), Angular and Flutter (small bundled sample apps `examples/sample-angular-app`, `examples/sample-flutter-app`; synthetic, not real-world codebases)

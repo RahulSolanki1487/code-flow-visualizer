@@ -82,6 +82,11 @@ steps, and anything inferred or risky (from `notes`).
 - Error paths are first-class – show where failures go.
 - Prefer one clear flow over a sprawling map of the whole repo.
 
+## Mode-specific rules (learned from eval runs)
+- **`user` mode stays at the user's level.** At least ~80% of nodes should be screens (`ui`), choices (`decision`), failures (`error`) or backend calls (`external`). Do not give each service/helper call its own node: fold code-level plumbing (token storage, router calls, signals) into the `description` of the screen or decision it belongs to, or into an edge label.
+- **`state` diagrams show what is forbidden, not just what is allowed.** Read the guards (`RequireStatus`, `if (status is ...) throw`, switch defaults). Every transition the code rejects becomes an `error` node (or `error` edge) naming the exception, and repeatable/idempotent calls get a note. A state diagram with only happy-path arrows is incomplete.
+- **Do not mark a hop `inferred` just because a URL comes from config**; mark it only when the call target or handler cannot be found by reading the code.
+
 ## Files
 - `templates/flow-page.html` – Bootstrap 5 + Mermaid page template (placeholders filled by the renderer)
 - `scripts/find_entry_points.py` – heuristics for routes/handlers/main across common stacks

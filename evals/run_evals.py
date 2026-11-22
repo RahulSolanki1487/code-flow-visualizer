@@ -29,8 +29,8 @@ def locate(spec, args, ev):
         g = ev.get("golden")
         return (ROOT / g["flow"], ROOT / g["repo"] if g.get("repo") else None) if g else None
     path = Path(args.outputs) / f"eval-{ev['id']}" / "flow.json"
-    repo = ev.get("repo")
-    return (path, ROOT / repo if repo else None) if path.is_file() else None
+    repo = (ev.get("run") or {}).get("repo") or ev.get("repo")
+    return (path, (ROOT / repo).resolve() if repo else None) if path.is_file() else None
 
 
 def main(argv=None):

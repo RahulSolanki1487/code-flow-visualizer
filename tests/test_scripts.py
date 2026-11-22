@@ -183,3 +183,58 @@ def test_aspnet_controller_routes_show_route_and_action(tmp_path):
     matches = [h["match"] for h in find_entry_points.scan(tmp_path, 50)]
     assert "HttpPost AddUpdateAsset AddUpdateAsset" in matches
     assert "HttpGet {id} GetOne" in matches
+
+
+# ---- evals harness -------------------------------------------------------
+EVALS = ROOT / "evals"
+sys.path.insert(0, str(EVALS))
+import flow_checks  # noqa: E402
+import run_evals  # noqa: E402
+
+
+def test_golden_evals_pass():
+    assert run_evals.main(["--golden"]) == 0
+
+
+def test_every_eval_has_checks_and_known_check_names():
+    spec = json.loads((EVALS / "evals.json").read_text(encoding="utf-8"))
+    for ev in spec["evals"]:
+        assert ev["checks"], f"eval {ev['id']} has no machine-checkable checks"
+        for c in ev["checks"]:
+            assert c["check"] in flow_checks.CHECKS, c
+
+
+def test_checks_catch_bad_flows():
+    data = load()
+    bad = copy.deepcopy(data)
+    for f in bad["flows"]:
+        for e in f["edges"]:
+            e.pop("kind", None)
+            e.pop("inferred", None)
+        for n in f["nodes"]:
+            n.pop("inferred", None)
+            if n["type"] == "error":
+                n["type"] = "logic"
+    res = {n: p for n, p, _ in flow_checks.run_checks(bad, SAMPLE_REPO, [
+        {"check": "has_error_path"}, {"check": "inferred_has_note"},
+        {"check": "max_nodes", "param": 3}, {"check": "mode", "param": "user"},
+        {"check": "mentions", "param": ["kafka"]}, {"check": "nonexistent"}])}
+    assert res == {"has_error_path": False, "inferred_has_note": False, "max_nodes": False,
+                   "mode": False, "mentions": False, "nonexistent": False}
+
+
+def test_run_evals_reads_model_outputs(tmp_path):
+    out = tmp_path / "eval-1"
+    out.mkdir()
+    (out / "flow.json").write_text(SAMPLE_JSON.read_text(encoding="utf-8"), encoding="utf-8")
+    assert run_evals.main(["--outputs", str(tmp_path)]) == 0
+    broken = json.loads(SAMPLE_JSON.read_text(encoding="utf-8"))
+    broken["flows"][0]["nodes"][0]["file"] = "src/nope.js"
+    (out / "flow.json").write_text(json.dumps(broken), encoding="utf-8")
+    assert run_evals.main(["--outputs", str(tmp_path)]) == 1
+
+
+def test_trigger_queries_are_well_formed():
+    q = json.loads((EVALS / "trigger_queries.json").read_text(encoding="utf-8"))
+    assert len(q["should_trigger"]) >= 8 and len(q["should_not_trigger"]) >= 8
+    assert not set(q["should_trigger"]) & set(q["should_not_trigger"])

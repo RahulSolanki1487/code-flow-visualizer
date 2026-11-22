@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sample-flutter-app – code flow</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<style>
+  body { min-height: 100vh; }
+  .cfv-sidebar { width: 280px; min-width: 280px; border-right: 1px solid var(--bs-border-color); overflow-y: auto; }
+  .cfv-sidebar .list-group-item { cursor: pointer; border: 0; border-radius: .375rem; }
+  .cfv-main { flex: 1; min-width: 0; overflow-y: auto; }
+  .cfv-diagram { height: 70vh; border: 1px solid var(--bs-border-color); border-radius: .5rem; overflow: hidden; position: relative; background: var(--bs-body-bg); }
+  .cfv-diagram svg { width: 100%; height: 100%; max-width: none !important; }
+  .cfv-zoom { position: absolute; right: .75rem; top: .75rem; z-index: 5; }
+  .cfv-legend span { display: inline-flex; align-items: center; gap: .35rem; margin-right: 1rem; font-size: .85rem; }
+  .cfv-dot { width: .8rem; height: .8rem; border-radius: 50%; display: inline-block; }
+  .cfv-step.cfv-active { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
+  pre.cfv-snippet { background: var(--bs-tertiary-bg); padding: .75rem; border-radius: .375rem; font-size: .8rem; margin: .5rem 0 0; white-space: pre-wrap; }
+  .cfv-file { font-family: var(--bs-font-monospace); font-size: .8rem; }
+  .node { cursor: pointer; }
+  @media (max-width: 991px) { .cfv-sidebar { display: none; } }
+</style>
+</head>
+<body class="d-flex flex-column">
+
+<nav class="navbar border-bottom px-3">
+  <span class="navbar-brand mb-0 h1"><span class="text-primary">&#9670;</span> <span id="cfv-project"></span> <small class="text-body-secondary fs-6">code flow</small></span>
+  <div class="d-flex gap-2 align-items-center">
+    <input id="cfv-search" class="form-control form-control-sm" type="search" placeholder="Search steps, files…" style="width:240px">
+    <button id="cfv-theme" class="btn btn-sm btn-outline-secondary text-nowrap" title="Toggle dark mode">Light / Dark</button>
+  </div>
+</nav>
+
+<div class="d-flex flex-grow-1" style="min-height:0">
+  <aside class="cfv-sidebar p-3">
+    <div class="text-uppercase small fw-semibold text-body-secondary mb-2">Flows</div>
+    <div id="cfv-flow-list" class="list-group"></div>
+    <div class="mt-4 small text-body-secondary" id="cfv-generated"></div>
+  </aside>
+
+  <main class="cfv-main p-4">
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-1">
+      <h2 class="h4 mb-0" id="cfv-title"></h2>
+      <span class="badge text-bg-secondary" id="cfv-mode"></span>
+      <span class="badge text-bg-light border" id="cfv-count"></span>
+    </div>
+    <p class="text-body-secondary" id="cfv-summary"></p>
+
+    <ul class="nav nav-tabs" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-diagram" type="button">Diagram</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-steps" type="button" id="cfv-steps-tab">Steps</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button">Files</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button">Notes <span class="badge rounded-pill text-bg-warning" id="cfv-notes-count"></span></button></li>
+    </ul>
+
+    <div class="tab-content pt-3">
+      <div class="tab-pane fade show active" id="tab-diagram">
+        <div class="cfv-legend mb-2" id="cfv-legend"></div>
+        <div class="cfv-diagram">
+          <div class="cfv-zoom btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary bg-body" id="cfv-zin">+</button>
+            <button class="btn btn-outline-secondary bg-body" id="cfv-zout">&minus;</button>
+            <button class="btn btn-outline-secondary bg-body" id="cfv-zfit">Fit</button>
+          </div>
+          <div id="cfv-diagram" class="h-100"></div>
+        </div>
+        <div class="small text-body-secondary mt-2">Tip: click a node to jump to its step. Dashed lines are inferred (not directly visible in code).</div>
+      </div>
+      <div class="tab-pane fade" id="tab-steps"><div class="accordion" id="cfv-steps"></div></div>
+      <div class="tab-pane fade" id="tab-files">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>File</th><th>Steps</th><th>Lines</th></tr></thead>
+          <tbody id="cfv-files"></tbody>
+        </table>
+      </div>
+      <div class="tab-pane fade" id="tab-notes"><ul class="list-group" id="cfv-notes"></ul></div>
+    </div>
+  </main>
+</div>
+
+<script type="application/json" id="cfv-data">{"project": "sample-flutter-app", "generated_at": "2026-11-22", "flows": [{"id": "login_and_browse", "title": "Sign in and open an item (Flutter / go_router)", "mode": "user", "summary": "A global go_router redirect sends signed-out users to /login and signed-in users away from it. Signing in goes to the home list, tapping an item pushes the detail screen, and the floating button signs out.", "notes": ["authRepository, email and password in login_screen.dart and home_screen.dart are undeclared in this trimmed sample; a real app would inject them (Provider/Riverpod).", "The redirect reads auth.isLoggedIn but the router has no refreshListenable, so signing out does not re-run it; the explicit context.go('/login') does the navigation."], "steps": [{"id": "launch", "label": "App launch", "type": "ui", "file": "lib/router.dart", "line": 7, "description": "buildRouter starts at '/' and installs one redirect function that runs for every navigation.", "snippet": "GoRouter buildRouter(AuthRepository auth) {", "vscode": "", "outgoing": [{"to": "redirect", "label": "", "label_to": "Signed in?"}]}, {"id": "redirect", "label": "Signed in?", "type": "decision", "file": "lib/router.dart", "line": 10, "description": "Signed-out users going anywhere but /login are redirected to /login; signed-in users hitting /login go to /.", "snippet": "if (!loggedIn && !goingToLogin) return '/login';", "vscode": "", "outgoing": [{"to": "login", "label": "no: redirect /login", "label_to": "Login screen"}, {"to": "home", "label": "yes", "label_to": "Home list"}]}, {"id": "login", "label": "Login screen", "type": "ui", "file": "lib/screens/login_screen.dart", "line": 13, "description": "_submit calls AuthRepository.signIn.", "snippet": "await authRepository.signIn(email, password);", "vscode": "", "outgoing": [{"to": "sign_in", "label": "submits", "label_to": "AuthRepository.signIn"}]}, {"id": "home", "label": "Home list", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 4, "description": "Lists items; tapping one pushes /item/<id>. The floating button signs out.", "snippet": "class HomeScreen extends StatelessWidget {", "vscode": "", "outgoing": [{"to": "detail", "label": "taps item", "label_to": "Item detail"}, {"to": "sign_out", "label": "taps button", "label_to": "Sign out"}]}, {"id": "sign_in", "label": "AuthRepository.signIn", "type": "logic", "file": "lib/auth_repository.dart", "line": 6, "description": "Rejects passwords shorter than 8 characters, otherwise stores a token.", "snippet": "if (password.length < 8) {", "vscode": "", "outgoing": [{"to": "home", "label": "ok: context.go('/')", "label_to": "Home list"}, {"to": "login_error", "label": "AuthException", "label_to": "Show auth error"}]}, {"id": "detail", "label": "Item detail", "type": "ui", "file": "lib/screens/detail_screen.dart", "line": 4, "description": "Receives the id from the :id path parameter.", "snippet": "class DetailScreen extends StatelessWidget {", "vscode": "", "outgoing": []}, {"id": "sign_out", "label": "Sign out", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 15, "description": "Clears the token and navigates to /login.", "snippet": "authRepository.signOut();", "vscode": "", "outgoing": [{"to": "login", "label": "", "label_to": "Login screen"}]}, {"id": "login_error", "label": "Show auth error", "type": "error", "file": "lib/screens/login_screen.dart", "line": 17, "description": "AuthException is caught and its message shown; the user stays on the login screen.", "snippet": "setState(() => error = e.message);", "vscode": "", "outgoing": [{"to": "login", "label": "tries again", "label_to": "Login screen"}]}], "mermaid": "flowchart TD\n  launch(\"App launch\")\n  redirect{\"Signed in?\"}\n  login(\"Login screen\")\n  sign_in[\"AuthRepository.signIn\"]\n  login_error{{\"Show auth error\"}}\n  home(\"Home list\")\n  detail(\"Item detail\")\n  sign_out(\"Sign out\")\n  launch --> redirect\n  redirect -->|\"no: redirect /login\"| login\n  redirect -->|\"yes\"| home\n  login -->|\"submits\"| sign_in\n  sign_in -->|\"ok: context.go('/')\"| home\n  sign_in ==>|\"AuthException\"| login_error\n  login_error -->|\"tries again\"| login\n  home -->|\"taps item\"| detail\n  home -->|\"taps button\"| sign_out\n  sign_out --> login\n  classDef entry fill:#cfe2ff,stroke:#0d6efd,color:#052c65\n  classDef logic fill:#f8f9fa,stroke:#6c757d,color:#212529\n  classDef data fill:#d1e7dd,stroke:#198754,color:#0a3622\n  classDef external fill:#e2d9f3,stroke:#6f42c1,color:#2c1a4d\n  classDef decision fill:#ffe5d0,stroke:#fd7e14,color:#58300a\n  classDef error fill:#f8d7da,stroke:#dc3545,color:#58151c\n  classDef ui fill:#cff4fc,stroke:#0dcaf0,color:#055160\n  classDef event fill:#f7d6e6,stroke:#d63384,color:#561435\n  class launch ui\n  click launch call cfvSelect(\"launch\")\n  class redirect decision\n  click redirect call cfvSelect(\"redirect\")\n  class login ui\n  click login call cfvSelect(\"login\")\n  class sign_in logic\n  click sign_in call cfvSelect(\"sign_in\")\n  class login_error error\n  click login_error call cfvSelect(\"login_error\")\n  class home ui\n  click home call cfvSelect(\"home\")\n  class detail ui\n  click detail call cfvSelect(\"detail\")\n  class sign_out ui\n  click sign_out call cfvSelect(\"sign_out\")\n  linkStyle 5 stroke:#dc3545,stroke-width:2px"}]}</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById('cfv-data').textContent);
+  const TYPE_COLORS = {
+    entry: '#0d6efd', logic: '#6c757d', data: '#198754', external: '#6f42c1',
+    decision: '#fd7e14', error: '#dc3545', ui: '#0dcaf0', event: '#d63384'
+  };
+  const TYPE_NAMES = {
+    entry: 'Entry point', logic: 'Logic', data: 'Data store', external: 'External service',
+    decision: 'Decision', error: 'Error path', ui: 'Screen / UI', event: 'Event / queue'
+  };
+  let current = null, panZoom = null, renderSeq = 0;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function theme() { return document.documentElement.getAttribute('data-bs-theme'); }
+
+  function initMermaid() {
+    if (!window.mermaid) return;
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose',
+      theme: theme() === 'dark' ? 'dark' : 'default',
+      flowchart: { htmlLabels: true, curve: 'basis' } });
+  }
+
+  async function renderDiagram(flow) {
+    const box = $('cfv-diagram');
+    if (!window.mermaid) {
+      box.innerHTML = '<div class="p-3 text-danger">Mermaid failed to load (offline?). Mermaid source:</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
+      return;
+    }
+    const id = 'cfv-svg-' + (++renderSeq);
+    try {
+      const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      box.innerHTML = svg;
+      if (bindFunctions) bindFunctions(box);
+      const el = box.querySelector('svg');
+      el.removeAttribute('style'); el.setAttribute('width', '100%'); el.setAttribute('height', '100%');
+      if (panZoom) { try { panZoom.destroy(); } catch (e) {} }
+      panZoom = window.svgPanZoom ? svgPanZoom(el, { controlIconsEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 10, dblClickZoomEnabled: false }) : null;
+    } catch (err) {
+      box.innerHTML = '<div class="p-3 text-danger">Diagram error: ' + esc(err.message || err) + '</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
+    }
+  }
+
+  function renderSteps(flow) {
+    const acc = $('cfv-steps');
+    acc.innerHTML = flow.steps.map((n, i) => {
+      const color = TYPE_COLORS[n.type] || '#6c757d';
+      const loc = n.file ? `<span class="cfv-file">${esc(n.file)}${n.line ? ':' + n.line : ''}</span>` : '<span class="text-body-secondary small">external</span>';
+      const vs = n.vscode ? `<a class="btn btn-sm btn-outline-secondary mt-2 me-2" href="${esc(n.vscode)}">Open in VS Code</a>` : '';
+      const inferred = n.inferred ? '<span class="badge text-bg-warning ms-2">inferred</span>' : '';
+      const link = vs + (n.link_to ? `<button class="btn btn-sm btn-outline-primary mt-2" data-goto="${esc(n.link_to)}">Open sub-flow &rarr;</button>` : '');
+      return `
+      <div class="accordion-item cfv-step" id="step-${esc(n.id)}" data-search="${esc((n.label + ' ' + (n.file||'') + ' ' + (n.description||'')).toLowerCase())}">
+        <h3 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#body-${esc(n.id)}">
+            <span class="cfv-dot me-2" style="background:${color}"></span>
+            <span class="me-2 text-body-secondary">${i + 1}.</span>
+            <span class="fw-semibold me-3">${esc(n.label)}</span>${loc}${inferred}
+          </button>
+        </h3>
+        <div id="body-${esc(n.id)}" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            <div class="small text-body-secondary mb-1">${esc(TYPE_NAMES[n.type] || n.type)}</div>
+            <div>${esc(n.description)}</div>
+            ${n.note ? `<div class="alert alert-warning py-1 px-2 mt-2 mb-0 small">${esc(n.note)}</div>` : ''}
+            ${n.snippet ? `<pre class="cfv-snippet"><code>${esc(n.snippet)}</code></pre>` : ''}
+            ${n.outgoing && n.outgoing.length ? `<div class="small mt-2">Next: ${n.outgoing.map(o => `<a href="#" data-step="${esc(o.to)}">${esc(o.label_to)}</a>${o.label ? ' <span class="text-body-secondary">(' + esc(o.label) + ')</span>' : ''}`).join(', ')}</div>` : ''}
+            ${link}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderFiles(flow) {
+    const map = {};
+    flow.steps.forEach((n, i) => { if (!n.file) return; (map[n.file] ||= []).push({ i: i + 1, id: n.id, line: n.line }); });
+    $('cfv-files').innerHTML = Object.keys(map).sort().map(f =>
+      `<tr><td class="cfv-file">${esc(f)}</td><td>${map[f].map(s => `<a href="#" data-step="${esc(s.id)}">#${s.i}</a>`).join(' ')}</td><td class="small">${map[f].map(s => s.line).filter(Boolean).join(', ')}</td></tr>`
+    ).join('') || '<tr><td colspan="3" class="text-body-secondary">No files.</td></tr>';
+  }
+
+  function renderNotes(flow) {
+    const notes = [...(flow.notes || []), ...flow.steps.filter(n => n.inferred && n.note).map(n => `${n.label}: ${n.note}`)];
+    $('cfv-notes-count').textContent = notes.length || '';
+    $('cfv-notes').innerHTML = notes.map(t => `<li class="list-group-item">${esc(t)}</li>`).join('') || '<li class="list-group-item text-body-secondary">No notes.</li>';
+  }
+
+  function renderLegend(flow) {
+    const used = [...new Set(flow.steps.map(n => n.type))];
+    $('cfv-legend').innerHTML = used.map(t => `<span><i class="cfv-dot" style="background:${TYPE_COLORS[t] || '#999'}"></i>${esc(TYPE_NAMES[t] || t)}</span>`).join('')
+      + '<span><svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="currentColor" stroke-dasharray="4 3"/></svg>Inferred</span>';
+  }
+
+  function selectFlow(id) {
+    const flow = DATA.flows.find(f => f.id === id) || DATA.flows[0];
+    current = flow;
+    document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.classList.toggle('active', el.dataset.flow === flow.id));
+    $('cfv-title').textContent = flow.title;
+    $('cfv-mode').textContent = flow.mode === 'user' ? 'User flow' : 'Code flow';
+    $('cfv-count').textContent = flow.steps.length + ' steps';
+    $('cfv-summary').textContent = flow.summary || '';
+    renderLegend(flow); renderSteps(flow); renderFiles(flow); renderNotes(flow); renderDiagram(flow);
+    $('cfv-search').value = '';
+    history.replaceState(null, '', '#' + flow.id);
+  }
+
+  window.cfvSelect = function (nodeId) {
+    bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
+    document.querySelectorAll('.cfv-step').forEach(el => el.classList.remove('cfv-active'));
+    const card = $('step-' + nodeId); if (!card) return;
+    card.classList.add('cfv-active');
+    bootstrap.Collapse.getOrCreateInstance($('body-' + nodeId), { toggle: false }).show();
+    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  };
+
+  document.addEventListener('click', (e) => {
+    const s = e.target.closest('[data-step]'); if (s) { e.preventDefault(); cfvSelect(s.dataset.step); return; }
+    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); selectFlow(g.dataset.goto);
+      bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show(); }
+  });
+
+  $('cfv-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (q) bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
+    document.querySelectorAll('.cfv-step').forEach(el => el.classList.toggle('d-none', q && !el.dataset.search.includes(q)));
+  });
+
+  $('cfv-theme').addEventListener('click', () => {
+    document.documentElement.setAttribute('data-bs-theme', theme() === 'dark' ? 'light' : 'dark');
+    try { localStorage.setItem('cfv-theme', theme()); } catch (e) {}
+    initMermaid(); if (current) renderDiagram(current);
+  });
+  $('cfv-zin').onclick = () => panZoom && panZoom.zoomIn();
+  $('cfv-zout').onclick = () => panZoom && panZoom.zoomOut();
+  $('cfv-zfit').onclick = () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } };
+  document.querySelector('[data-bs-target="#tab-diagram"]').addEventListener('shown.bs.tab', () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } });
+
+  try { const t = localStorage.getItem('cfv-theme'); if (t) document.documentElement.setAttribute('data-bs-theme', t); } catch (e) {}
+  $('cfv-project').textContent = DATA.project || 'Project';
+  $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
+  $('cfv-flow-list').innerHTML = DATA.flows.map(f =>
+    `<a class="list-group-item list-group-item-action" data-flow="${esc(f.id)}" onclick="return false">${esc(f.title)}<div class="small opacity-75">${f.steps.length} steps · ${f.mode === 'user' ? 'user' : 'code'}</div></a>`).join('');
+  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => selectFlow(el.dataset.flow)));
+  initMermaid();
+  selectFlow(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>

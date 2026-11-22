@@ -16,9 +16,10 @@ python skill/code-flow-visualizer/scripts/render_page.py examples/sample-flow.js
 
 # 2. Open examples/sample-flow.html in a browser (needs internet for the CDN libraries)
 
-# 3. Run tests
+# 3. Run tests and the eval harness
 pip install pytest
 python -m pytest -q
+python evals/run_evals.py --golden
 ```
 
 Requires Python 3.10+. No other dependencies.

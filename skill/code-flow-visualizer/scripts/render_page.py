@@ -17,7 +17,7 @@ VENDOR = SKILL_DIR / "assets" / "vendor"
 CDN = {
     "bootstrap_css": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
     "bootstrap_js": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js",
-    "mermaid_js": "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js",
+    "mermaid_js": "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js",
     "panzoom_js": "https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js",
 }
 VENDOR_FILES = {

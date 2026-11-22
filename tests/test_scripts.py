@@ -238,3 +238,85 @@ def test_trigger_queries_are_well_formed():
     q = json.loads((EVALS / "trigger_queries.json").read_text(encoding="utf-8"))
     assert len(q["should_trigger"]) >= 8 and len(q["should_not_trigger"]) >= 8
     assert not set(q["should_trigger"]) & set(q["should_not_trigger"])
+
+
+def test_spring_handlers_show_verb_path_and_method(tmp_path):
+    (tmp_path / "ItemController.java").write_text(
+        '@RestController\n@RequestMapping("/v1/items")\npublic class ItemController {\n'
+        '    @PostMapping\n    public ResponseEntity<String> createItem(@RequestBody R r) {\n    }\n'
+        '    @PutMapping("/{itemId}")\n    public ResponseEntity<String> updateItem(@PathVariable UUID itemId) {\n    }\n'
+        '    @GetMapping()\n    public ResponseEntity<X> getItems() {\n    }\n'
+        '    @DeleteMapping(value = "/{itemId}")\n    @ResponseStatus(HttpStatus.NO_CONTENT)\n    public void deleteItem() {\n    }\n}\n',
+        encoding="utf-8")
+    hits = find_entry_points.scan(tmp_path, 50)
+    matches = {h["match"] for h in hits if h["kind"] == "route"}
+    assert matches == {"Post createItem", "Put /{itemId} updateItem", "Get getItems", "Delete /{itemId} deleteItem"}
+    assert [h["match"] for h in hits if h["kind"] == "prefix"] == ["/v1/items ItemController"]
+
+
+# ---- split_flow ----------------------------------------------------------
+import split_flow  # noqa: E402
+
+
+def big_flow(n=100, diagram="flowchart"):
+    """A chain of n nodes with a side branch every 10 nodes and one back edge to the start."""
+    nodes = [{"id": f"n{i}", "label": f"Step {i}", "type": "logic", "description": "d", "file": "src/a.js", "line": 1}
+             for i in range(n)]
+    edges = [{"from": f"n{i}", "to": f"n{i + 1}"} for i in range(n - 1)]
+    for i in range(0, n - 1, 10):
+        nodes.append({"id": f"err{i}", "label": f"Error {i}", "type": "error", "description": "d", "file": "src/a.js", "line": 2})
+        edges.append({"from": f"n{i}", "to": f"err{i}", "kind": "error"})
+    edges.append({"from": f"n{n - 1}", "to": "n3", "label": "loops"})
+    return {"id": "big", "title": "Big flow", "mode": "code", "diagram": diagram, "summary": "s",
+            "entry": "n0", "nodes": nodes, "edges": edges}
+
+
+def test_split_keeps_every_flow_within_limit_and_all_nodes():
+    flow = big_flow()
+    pieces = split_flow.split_flow(flow, 40)
+    assert len(pieces) > 1 and all(len(p["nodes"]) <= 40 for p in pieces)
+    real = {n["id"] for p in pieces for n in p["nodes"] if not n.get("link_to")}
+    assert real == {n["id"] for n in flow["nodes"]}  # nothing lost, nothing duplicated
+    assert sum(1 for p in pieces for n in p["nodes"] if not n.get("link_to")) == len(flow["nodes"])
+
+
+def test_split_output_is_valid_linked_and_renderable():
+    data = {"project": "p", "flows": [big_flow()]}
+    out = split_flow.split_data(data, 40)
+    errors, _ = validate_flow.validate(out, None)
+    assert errors == []
+    ids = {f["id"] for f in out["flows"]}
+    assert all(n["link_to"] in ids for f in out["flows"] for n in f["nodes"] if n.get("link_to"))
+    assert out["flows"][0]["id"] == "big" and out["flows"][0]["entry"] == "n0"
+    assert "flowchart" in render_page.render(out)  # every flow renders
+
+
+def test_split_children_are_reachable_from_head_via_stubs():
+    out = split_flow.split_data({"project": "p", "flows": [big_flow()]}, 40)
+    by_id = {f["id"]: f for f in out["flows"]}
+    reachable, queue = set(), [out["flows"][0]["id"]]
+    while queue:
+        fid = queue.pop()
+        if fid in reachable:
+            continue
+        reachable.add(fid)
+        queue += [n["link_to"] for n in by_id[fid]["nodes"] if n.get("link_to")]
+    assert reachable == set(by_id)
+
+
+def test_small_and_sequence_flows_are_untouched():
+    small = big_flow(10)
+    assert split_flow.split_flow(small, 40) == [small]
+    seq = big_flow(100, diagram="sequence")
+    assert split_flow.split_flow(seq, 40) == [seq]
+
+
+def test_split_mermaid_parses():
+    import check_mermaid
+    out = split_flow.split_data({"project": "p", "flows": [big_flow()]}, 40)
+    try:
+        results = check_mermaid.run_checker(check_mermaid.diagrams(out))
+    except check_mermaid.CheckerUnavailable:
+        import pytest
+        pytest.skip("Node/mermaid-check dependencies not installed")
+    assert all(r["ok"] for r in results), results

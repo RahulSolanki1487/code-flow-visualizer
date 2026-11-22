@@ -73,7 +73,7 @@ def validate(data: dict, repo: Path | None):
         if f.get("entry") not in idset:
             errors.append(f"{p}: entry '{f.get('entry')}' is not a node id")
         if len(nodes) > MAX_NODES:
-            warnings.append(f"{p}: {len(nodes)} nodes (> {MAX_NODES}); consider splitting with link_to")
+            warnings.append(f"{p}: {len(nodes)} nodes (> {MAX_NODES}); consider splitting (python split_flow.py flow.json -o flow.json)")
 
         for n in nodes:
             np_ = f"{p} node '{n.get('id')}'"

@@ -1,7 +1,7 @@
 # Eval results (2026-11-22)
 
 One run per eval, each by a fresh subagent that read only `SKILL.md` and the target repo, scored by
-`python evals/run_evals.py --outputs DIR`. Eval 5 (Spring Boot) was not run: no Spring repo was available.
+`python evals/run_evals.py --outputs DIR`. Eval 5 (Spring Boot) was run later on springboot-react (see below).
 
 ## Round 1: skill as of the Phase 4 harness commit
 | Eval | Target | Result | Notes |
@@ -25,6 +25,9 @@ transitions in state diagrams as errors, and don't mark a hop `inferred` merely 
 | 3 | pass | 100% UI-level nodes |
 | 6 | pass | 4 error nodes for forbidden transitions, idempotent no-ops |
 | 8 | pass | 19 -> 10 nodes, 91% UI-level |
+
+## Eval 5 (added later)
+Run on `springboot-react`, `GET /v1/items/{itemId}` (the repo has no /customers). Passed first time: 16 nodes, DI wiring (component scan, constructor injection, Spring Data proxy, `@Transactional` proxy) marked inferred with notes, 404 and uncaught-error paths shown, Mermaid parses.
 
 ## Caveats
 - **No without-skill baseline.** A model without the skill would not produce `flow.json`, so these checks cannot score it. The comparison here is skill before vs. after tuning.

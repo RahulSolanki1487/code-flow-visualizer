@@ -13,6 +13,7 @@ from pathlib import Path
 
 NODE_TYPES = {"entry", "logic", "data", "external", "decision", "error", "ui", "event"}
 EDGE_KINDS = {"normal", "error", "async"}
+DIAGRAMS = {"flowchart", "sequence", "state"}
 MAX_NODES = 40
 MAX_LABEL = 40
 SNIPPET_NEAR = 15  # a snippet should start within this many lines of the cited line
@@ -62,8 +63,8 @@ def validate(data: dict, repo: Path | None):
                 errors.append(f"{p}: missing '{key}'")
         if f.get("mode") not in ("code", "user"):
             errors.append(f"{p}: mode must be 'code' or 'user'")
-        if f.get("diagram", "flowchart") not in ("flowchart", "sequence"):
-            errors.append(f"{p}: diagram must be 'flowchart' or 'sequence'")
+        if f.get("diagram", "flowchart") not in DIAGRAMS:
+            errors.append(f"{p}: diagram must be one of {', '.join(sorted(DIAGRAMS))}")
         nodes = f.get("nodes", [])
         ids = [n.get("id") for n in nodes]
         if len(set(ids)) != len(ids):

@@ -1,0 +1,43 @@
+{
+  "project": "dotnet-starter-kit",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "invoice_status",
+      "title": "Invoice status lifecycle",
+      "mode": "code",
+      "diagram": "state",
+      "direction": "LR",
+      "summary": "An invoice starts as Draft, is Issued to the customer, then ends as Paid or Void. Void is allowed from Draft or Issued but never from Paid. MarkPaid and Void are idempotent when repeated.",
+      "entry": "draft",
+      "nodes": [
+        { "id": "draft", "label": "Draft", "type": "logic", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 55,
+          "description": "CreateDraft builds the invoice with Status = Draft; line items can be added while in this state.",
+          "snippet": "public static Invoice CreateDraft(" },
+        { "id": "issued", "label": "Issued", "type": "logic", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 122,
+          "description": "Issue() requires Draft, stamps IssuedAtUtc and sets the due date (default +14 days).",
+          "snippet": "RequireStatus(InvoiceStatus.Draft);\nStatus = InvoiceStatus.Issued;" },
+        { "id": "paid", "label": "Paid", "type": "data", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 132,
+          "description": "MarkPaid() requires Issued and stamps PaidAtUtc. Calling it on a Paid invoice is a no-op.",
+          "snippet": "Status = InvoiceStatus.Paid;" },
+        { "id": "void", "label": "Void", "type": "data", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 146,
+          "description": "Void() is allowed from Draft or Issued, appends the reason to Notes, and is a no-op when already Void.",
+          "snippet": "Status = InvoiceStatus.Void;" },
+        { "id": "void_paid_error", "label": "Paid cannot be voided", "type": "error", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 148,
+          "description": "Voiding a Paid invoice throws InvalidOperationException.",
+          "snippet": "throw new InvalidOperationException(\"Paid invoices cannot be voided.\");" }
+      ],
+      "edges": [
+        { "from": "draft", "to": "issued", "label": "Issue()" },
+        { "from": "issued", "to": "paid", "label": "MarkPaid()" },
+        { "from": "draft", "to": "void", "label": "Void()" },
+        { "from": "issued", "to": "void", "label": "Void()" },
+        { "from": "paid", "to": "void_paid_error", "label": "Void()", "kind": "error" }
+      ],
+      "notes": [
+        "The status transitions live in the Invoice aggregate. The HTTP endpoints (issue, pay, void) only call these methods, which I did not trace here.",
+        "MarkPaid on Draft throws; only Issued can be paid."
+      ]
+    }
+  ]
+}

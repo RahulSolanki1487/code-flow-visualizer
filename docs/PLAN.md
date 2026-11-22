@@ -83,7 +83,7 @@ docs/PLAN.md                    ← this file
 - [x] Sample Express app + sample flow, unit tests
 
 ### Phase 2 – Accuracy (3–4 days) – in progress
-- [ ] Run the skill on 3 real repos you know; compare the diagram with reality (1/3: dotnet-starter-kit `POST /products`, see `examples/dotnet-starter-kit/`)
+- [ ] Run the skill on 3 real repos you know; compare the diagram with reality (2/3 so far: dotnet-starter-kit `POST /products`, see `examples/dotnet-starter-kit/`; PDIFAnalyticsAPI `POST /api/Assets/AddUpdateAsset`, kept private outside this repo)
 - [~] Tighten SKILL.md trace rules wherever Claude drew wrong or missing edges (cross-cutting pipeline, registration check, verbatim snippets added; continue per repo)
 - [x] Add a Mermaid parse check (`check_mermaid.py`, Node + mermaid + jsdom, optional) to catch syntax errors before delivery
 - [ ] Automatic splitting when a flow has > 40 nodes
@@ -91,11 +91,11 @@ docs/PLAN.md                    ← this file
 - [x] Entry-point heuristics ignore commented-out examples
 - [ ] Next: 2 more real repos (try a user flow and a background job), then auto-split
 
-### Phase 3 – Modes & frameworks (≈ 1 week)
-- [ ] User-flow mode tested on React/Next.js, Angular and Flutter apps
-- [ ] Extend `find_entry_points.py` patterns (Go routers, Laravel, Rails, gRPC)
-- [ ] State-diagram support (`diagram: "state"`) for workflows/order status
-- [ ] Optional "Open in VS Code" links (`vscode://file/<abs-path>:<line>`)
+### Phase 3 – Modes & frameworks (≈ 1 week) – mostly done
+- [~] User-flow mode tested on React/Next.js, Angular and Flutter apps (React done: dotnet-starter-kit dashboard login in `examples/dotnet-starter-kit/login-journey.flow.json`; Next.js, Angular, Flutter still untested)
+- [x] Extend `find_entry_points.py` patterns (Go routers, Laravel, Rails, gRPC, Next.js pages, react-router object routes)
+- [x] State-diagram support (`diagram: "state"`), example: invoice lifecycle
+- [x] Optional "Open in VS Code" links (`render_page.py --repo`) (`vscode://file/<abs-path>:<line>`)
 
 ### Phase 4 – Evals (2–3 days)
 - [ ] Use `evals/evals.json` with the skill-creator skill (with-skill vs without-skill)

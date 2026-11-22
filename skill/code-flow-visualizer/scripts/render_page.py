@@ -2,7 +2,7 @@
 """Render flow.json into a self-contained Bootstrap 5 + Mermaid HTML page.
 
 Usage:
-    python render_page.py flow.json -o flow.html [--offline]
+    python render_page.py flow.json -o flow.html [--offline] [--repo PATH]
 """
 import argparse
 import json
@@ -125,7 +125,39 @@ def sequence(flow) -> str:
     return "\n".join(lines)
 
 
-def build_flow(flow):
+def state(flow) -> str:
+    """stateDiagram-v2: nodes are states, edges are transitions. Sinks end in [*]."""
+    lines = ["stateDiagram-v2", f"  direction {'LR' if flow.get('direction') == 'LR' else 'TB'}"]
+    for n in flow["nodes"]:
+        lines.append(f'  state "{mlabel(n["label"])}" as {safe_id(n["id"])}')
+    entry = flow.get("entry") or flow["nodes"][0]["id"]
+    lines.append(f"  [*] --> {safe_id(entry)}")
+    sources = {e["from"] for e in flow["edges"]}
+    for e in flow["edges"]:
+        lab = mlabel(e.get("label", "")).replace(":", " ")
+        lines.append(f"  {safe_id(e['from'])} --> {safe_id(e['to'])}" + (f" : {lab}" if lab else ""))
+    for n in flow["nodes"]:
+        if n["id"] not in sources and n["id"] != entry:
+            lines.append(f"  {safe_id(n['id'])} --> [*]")
+    errors = [safe_id(n["id"]) for n in flow["nodes"] if n.get("type") == "error"]
+    if errors:
+        lines.append("  classDef err fill:#f8d7da,stroke:#dc3545,color:#58151c")
+        lines.append(f"  class {','.join(errors)} err")
+    return "\n".join(lines)
+
+
+DIAGRAMS = {"flowchart": flowchart, "sequence": sequence, "state": state}
+
+
+def vscode_url(repo_root: Path | None, file_: str | None, line) -> str:
+    """vscode://file link for a repo-relative path; empty when no repo root was given."""
+    if not repo_root or not file_:
+        return ""
+    absolute = (repo_root / file_).resolve().as_posix()
+    return f"vscode://file/{absolute}" + (f":{line}" if line else "")
+
+
+def build_flow(flow, repo_root: Path | None = None):
     nodes = {n["id"]: n for n in flow["nodes"]}
     order = order_nodes(flow)
     outgoing = {}
@@ -137,9 +169,10 @@ def build_flow(flow):
     steps = []
     for nid in order:
         n = dict(nodes[nid])
+        n["vscode"] = vscode_url(repo_root, n.get("file"), n.get("line"))
         n["outgoing"] = outgoing.get(nid, [])
         steps.append(n)
-    mermaid = sequence(flow) if flow.get("diagram") == "sequence" else flowchart(flow)
+    mermaid = DIAGRAMS.get(flow.get("diagram", "flowchart"), flowchart)(flow)
     return {
         "id": flow["id"], "title": flow["title"], "mode": flow.get("mode", "code"),
         "summary": flow.get("summary", ""), "notes": flow.get("notes", []),
@@ -161,11 +194,11 @@ def asset_tag(key: str, offline: bool) -> str:
     return f'<link rel="stylesheet" href="{url}">' if is_css else f'<script src="{url}"></script>'
 
 
-def render(data: dict, offline: bool = False) -> str:
+def render(data: dict, offline: bool = False, repo_root: Path | None = None) -> str:
     page = {
         "project": data.get("project", "Project"),
         "generated_at": data.get("generated_at", ""),
-        "flows": [build_flow(f) for f in data["flows"]],
+        "flows": [build_flow(f, repo_root) for f in data["flows"]],
     }
     payload = json.dumps(page, ensure_ascii=False).replace("</", "<\\/")
     html = TEMPLATE.read_text(encoding="utf-8")
@@ -189,9 +222,10 @@ def main():
     ap.add_argument("flow_json")
     ap.add_argument("-o", "--output", default="flow.html")
     ap.add_argument("--offline", action="store_true", help="inline vendor libraries from assets/vendor/")
+    ap.add_argument("--repo", help="repo root; adds 'Open in VS Code' links to each step")
     args = ap.parse_args()
     data = json.loads(Path(args.flow_json).read_text(encoding="utf-8"))
-    Path(args.output).write_text(render(data, args.offline), encoding="utf-8")
+    Path(args.output).write_text(render(data, args.offline, Path(args.repo).resolve() if args.repo else None), encoding="utf-8")
     print(f"wrote {args.output} ({len(data['flows'])} flow(s))")
 
 

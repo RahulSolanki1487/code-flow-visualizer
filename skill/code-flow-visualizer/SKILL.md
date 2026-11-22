@@ -1,6 +1,15 @@
 ---
 name: code-flow-visualizer
-description: Trace how code runs and produce a self-contained Bootstrap 5 HTML page with an interactive Mermaid diagram (flowchart, sequence or state), a step-by-step walkthrough and file:line references. Use when the user wants to understand, explain, document, visualize or diagram how something works end to end: "what happens when POST /x is called", a request or call flow, an API route, a background job or cron run, an event/message handler, a CLI command, a status or workflow lifecycle (state diagram), or a user journey / screen navigation flow (React, Next.js, Angular, Flutter). Also for onboarding maps of a repo's main flows. Not for architecture/ER/deployment diagrams of a whole system, charts of data, or reviewing code quality.
+description: >-
+  Trace how code runs and produce a self-contained Bootstrap 5 HTML page with an interactive
+  Mermaid diagram (flowchart, sequence or state), a step-by-step walkthrough and file:line
+  references. Use when the user wants to understand, explain, document, visualize or diagram how
+  something works end to end: "what happens when POST /x is called", a request or call flow, an
+  API route, a background job or cron run, an event/message handler, a CLI command, a status or
+  workflow lifecycle (state diagram), or a user journey / screen navigation flow (React, Next.js,
+  Angular, Flutter). Also for onboarding maps of a repo's main flows. Not for
+  architecture/ER/deployment diagrams of a whole system, charts of data, or reviewing code
+  quality.
 ---
 
 # Code Flow Visualizer

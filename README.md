@@ -35,8 +35,12 @@ python skill/code-flow-visualizer/scripts/render_page.py examples/sample-flow.js
 | Where | How |
 |---|---|
 | Claude app (web/desktop) | `python tools/package_skill.py` → upload `dist/code-flow-visualizer.zip` under Settings → Capabilities → Skills |
-| Claude Code (personal) | copy `skill/code-flow-visualizer/` to `~/.claude/skills/` |
-| Claude Code (project) | copy it to `<your-project>/.claude/skills/` |
+| Claude Code (personal) | `python tools/install_skill.py --personal` (copies to `~/.claude/skills/`) |
+| Claude Code (project) | `python tools/install_skill.py --project <your-project>` |
+| Claude Code plugin (teams) | `python tools/build_plugin.py --zip` → `dist/plugin/`; try with `claude --plugin-dir dist/plugin/code-flow-visualizer`. Bundle other team skills with `--extra-skills DIR [DIR ...]` and a custom `--name` |
+| No internet at the client | `python tools/package_skill.py --offline --fetch` → `dist/code-flow-visualizer-offline.zip` (Bootstrap, Mermaid and svg-pan-zoom included; pages made with `render_page.py --offline` have no external requests). Add `--offline` to `install_skill.py` / `build_plugin.py` too |
+
+All packaging commands validate `SKILL.md` first (name, description length, referenced files). The version is in `VERSION`.
 
 Then ask Claude something like:
 > "Show me the flow of `POST /orders` in this repo as an HTML page."
@@ -61,3 +65,7 @@ tests/                        pytest for the scripts
 tools/                        packaging
 docs/                         plan & analysis
 ```
+
+## License
+
+[MIT](LICENSE)

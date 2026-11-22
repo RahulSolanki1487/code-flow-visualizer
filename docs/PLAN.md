@@ -102,10 +102,10 @@ docs/PLAN.md                    ← this file
 - [x] Checks: every `file:line` real, Mermaid parses, key steps present, error paths shown, inferred hops explained, node limits, mode/diagram type (`evals/flow_checks.py`, `python evals/run_evals.py --golden`; 9 evals, goldens for 1, 6, 7, 8, 9)
 - [~] Tune the `description` in SKILL.md so the skill triggers for "explain/diagram/visualize this flow" requests (description rewritten with trigger phrases and exclusions; `evals/trigger_queries.json` has 10 should/shouldn't queries, still to be run through skill-creator's description optimizer)
 
-### Phase 5 – Packaging & distribution
-- [ ] `python tools/package_skill.py` → upload to Claude (Settings → Capabilities → Skills) or copy into `~/.claude/skills/` for Claude Code
-- [ ] Bundle with other team skills as a plugin for client deployment
-- [ ] Ship an offline build (vendor libraries inlined) for clients without CDN access
+### Phase 5 – Packaging & distribution ✅ (except the manual upload to the Claude app)
+- [x] `python tools/package_skill.py` builds a validated zip (name/description limits, referenced files); `tools/install_skill.py` copies into `~/.claude/skills/` or a project. Manual step left: upload the zip in the Claude app (Settings → Capabilities → Skills)
+- [x] Bundle with other team skills as a plugin (`tools/build_plugin.py --extra-skills`); `claude plugin validate` passes (only warns when no `--author`)
+- [x] Offline build: `package_skill.py --offline --fetch` (libraries pinned: Mermaid 11.17.2, Bootstrap 5.3.3, svg-pan-zoom 3.6.1); offline page verified to have no external refs
 
 ---
 

@@ -234,10 +234,13 @@ def test_run_evals_reads_model_outputs(tmp_path):
     assert run_evals.main(["--outputs", str(tmp_path)]) == 1
 
 
-def test_trigger_queries_are_well_formed():
-    q = json.loads((EVALS / "trigger_queries.json").read_text(encoding="utf-8"))
-    assert len(q["should_trigger"]) >= 8 and len(q["should_not_trigger"]) >= 8
-    assert not set(q["should_trigger"]) & set(q["should_not_trigger"])
+def test_trigger_eval_set_is_well_formed():
+    items = json.loads((EVALS / "trigger" / "trigger-eval.json").read_text(encoding="utf-8"))
+    positives = [i["query"] for i in items if i["should_trigger"]]
+    negatives = [i["query"] for i in items if not i["should_trigger"]]
+    assert len(positives) >= 8 and len(negatives) >= 8
+    assert not set(positives) & set(negatives)
+    assert all(len(q) > 60 for q in positives + negatives), "queries should be realistic, not one-liners"
 
 
 def test_spring_handlers_show_verb_path_and_method(tmp_path):

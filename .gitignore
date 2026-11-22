@@ -9,3 +9,7 @@ node_modules/
 # offline vendor copies are downloaded with fetch_vendor.py
 skill/code-flow-visualizer/assets/vendor/*.js
 skill/code-flow-visualizer/assets/vendor/*.css
+
+# skill-creator trigger tuning creates temporary commands here
+.claude/commands/
+evals/trigger/runs/

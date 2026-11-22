@@ -1,0 +1,82 @@
+[
+  {
+    "query": "ok so our checkout api is a mess. can you trace what actually happens in the code when someone hits POST /api/orders (repo is in C:\\work\\shop-api) and give me something visual i can send to the new guy, html page or whatever",
+    "should_trigger": true
+  },
+  {
+    "query": "I need to understand the nightly invoice job in this .NET service before I touch it. start from the BackgroundService and map out every step down to the database writes, with the file and line for each, as a diagram",
+    "should_trigger": true
+  },
+  {
+    "query": "whats the flow when a user logs in on our react app? like from /login through the redirect guard to the dashboard, including the 2fa step. draw it so i can paste it in the wiki",
+    "should_trigger": true
+  },
+  {
+    "query": "Walk me through, with a sequence diagram, how a message gets from the Kafka listener in OrderEventsConsumer to the inventory table. Spring Boot project in ~/dev/fulfilment",
+    "should_trigger": true
+  },
+  {
+    "query": "can you document the lifecycle of a Subscription in billing/models.py as a state diagram? draft -> active -> past_due -> cancelled, and what the code blocks",
+    "should_trigger": true
+  },
+  {
+    "query": "new hire starts monday and the repo has like 40 controllers. can you pick the 3 most important request flows and make me an onboarding page showing how each one runs end to end",
+    "should_trigger": true
+  },
+  {
+    "query": "show the navigation flow of the flutter app starting at main.dart, which screens can the user reach and what gates them (auth, onboarding done, etc)",
+    "should_trigger": true
+  },
+  {
+    "query": "trace GET /customers/{id} in this spring service, we use constructor injection everywhere and i cant tell which impl gets wired. i want a diagram with the DI hops marked",
+    "should_trigger": true
+  },
+  {
+    "query": "What happens in our Django app when the stripe webhook hits /webhooks/stripe/? I want a visual of the path through views, signals and celery tasks, errors included",
+    "should_trigger": true
+  },
+  {
+    "query": "generate an interactive html diagram of how the `sync-users` CLI command works, from argparse entry to the final api call, I want to click on a node and see the code",
+    "should_trigger": true
+  },
+  {
+    "query": "draw the overall architecture of our platform: api gateway, 6 microservices, kafka, postgres and redis, and how they talk to each other. for the board deck",
+    "should_trigger": false
+  },
+  {
+    "query": "here's my schema.sql, make me an ER diagram of the tables and foreign keys",
+    "should_trigger": false
+  },
+  {
+    "query": "explain what this function does line by line, i dont get the reduce part\n\nfunction total(items){ return items.reduce((s,i)=>s+i.price*i.qty,0) }",
+    "should_trigger": false
+  },
+  {
+    "query": "POST /orders is returning 500 since yesterday's deploy, stack trace says NullReferenceException in OrderService.cs line 88. figure out why and fix it",
+    "should_trigger": false
+  },
+  {
+    "query": "make a flowchart of our hiring process: application, phone screen, onsite, offer. for the careers page, nothing to do with code",
+    "should_trigger": false
+  },
+  {
+    "query": "can you add a line chart of p95 latency per endpoint from this csv (columns: ts, endpoint, p95_ms) and put it in a dashboard html",
+    "should_trigger": false
+  },
+  {
+    "query": "write the openapi yaml for these 5 express routes in routes/orders.js",
+    "should_trigger": false
+  },
+  {
+    "query": "review my PR, its the one that adds retry logic to PaymentClient. look for bugs and anything that breaks our conventions",
+    "should_trigger": false
+  },
+  {
+    "query": "write mermaid for a sequence diagram: user sends a message to the bot, bot calls the llm, llm replies. just pure text, no repo involved, i'll put it in notion",
+    "should_trigger": false
+  },
+  {
+    "query": "create a deployment diagram for our kubernetes setup: ingress, 3 deployments, a statefulset for postgres, and the secrets they mount",
+    "should_trigger": false
+  }
+]

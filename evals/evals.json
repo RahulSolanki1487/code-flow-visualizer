@@ -9,7 +9,7 @@
         "validate_flow.py reports 0 errors with --repo",
         "page renders with no Mermaid error",
         "401, 409 and 500 error paths are present",
-        "payment service edge is marked inferred"
+        "calls to the payment service are shown as an external node"
       ],
       "repo": "examples/sample-express-app",
       "golden": {
@@ -37,13 +37,17 @@
           ]
         },
         {
-          "check": "inferred_has_note"
-        },
-        {
           "check": "max_nodes",
           "param": 40
+        },
+        {
+          "check": "has_external"
         }
-      ]
+      ],
+      "run": {
+        "repo": "examples/sample-express-app",
+        "note": ""
+      }
     },
     {
       "id": 2,
@@ -69,7 +73,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": "examples/sample-express-app",
+        "note": "Produce one flow.json with 2-3 flows."
+      }
     },
     {
       "id": 3,
@@ -106,7 +114,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": "../dotnet-starter-kit/clients/dashboard",
+        "note": "This is a React app; there is no checkout, so trace login to the landing page and one more journey of your choice."
+      }
     },
     {
       "id": 4,
@@ -131,7 +143,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": "../dotnet-starter-kit",
+        "note": "There is no 'nightly sync'; use the outbox dispatcher hosted service (BuildingBlocks/Eventing/Outbox) as the background job."
+      }
     },
     {
       "id": 5,
@@ -158,7 +174,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": null,
+        "note": "No suitable repo available locally (needs a Spring Boot service); not runnable here."
+      }
     },
     {
       "id": 6,
@@ -187,6 +207,10 @@
       "golden": {
         "flow": "examples/dotnet-starter-kit/invoice-status.flow.json",
         "repo": "../dotnet-starter-kit"
+      },
+      "run": {
+        "repo": "../dotnet-starter-kit",
+        "note": "The invoice domain class is in src/Modules/Billing."
       }
     },
     {
@@ -227,6 +251,10 @@
       "golden": {
         "flow": "examples/nextjs-eve-pocket-research/research-chat-journey.flow.json",
         "repo": "../zazencodes-season-3"
+      },
+      "run": {
+        "repo": "../zazencodes-season-3/src/eve-pocket-research",
+        "note": ""
       }
     },
     {
@@ -276,7 +304,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": "examples/sample-angular-app",
+        "note": ""
+      }
     },
     {
       "id": 9,
@@ -326,7 +358,11 @@
         {
           "check": "mermaid_parses"
         }
-      ]
+      ],
+      "run": {
+        "repo": "examples/sample-flutter-app",
+        "note": ""
+      }
     }
   ],
   "_note": "Goldens whose repo is a sibling checkout (../dotnet-starter-kit, ../zazencodes-season-3) are validated against it when present; otherwise only the schema checks run."

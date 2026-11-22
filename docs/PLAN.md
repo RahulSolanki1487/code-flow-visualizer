@@ -83,7 +83,7 @@ docs/PLAN.md                    ← this file
 - [x] Sample Express app + sample flow, unit tests
 
 ### Phase 2 – Accuracy (3–4 days) – in progress
-- [ ] Run the skill on 3 real repos you know; compare the diagram with reality (1/3: dotnet-starter-kit `POST /products`, see `examples/dotnet-starter-kit/`)
+- [ ] Run the skill on 3 real repos you know; compare the diagram with reality (2/3 so far: dotnet-starter-kit `POST /products`, see `examples/dotnet-starter-kit/`; PDIFAnalyticsAPI `POST /api/Assets/AddUpdateAsset`, kept private outside this repo)
 - [~] Tighten SKILL.md trace rules wherever Claude drew wrong or missing edges (cross-cutting pipeline, registration check, verbatim snippets added; continue per repo)
 - [x] Add a Mermaid parse check (`check_mermaid.py`, Node + mermaid + jsdom, optional) to catch syntax errors before delivery
 - [ ] Automatic splitting when a flow has > 40 nodes

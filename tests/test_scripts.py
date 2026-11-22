@@ -173,3 +173,13 @@ def test_state_diagram_parses_in_mermaid():
         import pytest
         pytest.skip("Node/mermaid-check dependencies not installed")
     assert res[0]["ok"], res
+
+
+def test_aspnet_controller_routes_show_route_and_action(tmp_path):
+    (tmp_path / "AssetsController.cs").write_text(
+        '    [HttpPost]\n    [Route("AddUpdateAsset")]\n'
+        '    public async Task<IActionResult> AddUpdateAsset([FromBody] Asset a)\n    {\n    }\n'
+        '    [HttpGet("{id}")]\n    public IActionResult GetOne(int id) { }\n', encoding="utf-8")
+    matches = [h["match"] for h in find_entry_points.scan(tmp_path, 50)]
+    assert "HttpPost AddUpdateAsset AddUpdateAsset" in matches
+    assert "HttpGet {id} GetOne" in matches

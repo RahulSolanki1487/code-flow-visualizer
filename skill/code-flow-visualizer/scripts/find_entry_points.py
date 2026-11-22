@@ -25,7 +25,7 @@ PATTERNS = [
     ("django", "route", {".py"}, r"""\b(?:re_)?path\s*\(\s*r?['"]([^'"]*)['"]\s*,\s*([\w.]+)"""),
     ("spring", "route", {".java", ".kt"},
      r"""@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(?\s*(?:value\s*=\s*)?['"]?([^'")]*)"""),
-    ("aspnet", "route", {".cs"}, r"""\[(HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*(?:\(\s*"([^"]*)")?"""),
+    ("aspnet", "route", {".cs"}, r"""\[(HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*(?:\(\s*"([^"]*)"\s*\))?\]\s*(?:\[Route\(\s*"([^"]*)"\s*\)\]\s*)?(?:\[[^\]\n]*\]\s*)*(?:public\s+(?:async\s+)?[\w<>\[\],.? ]+?\s+(\w+)\s*\()?"""),
     ("aspnet-minimal", "route", {".cs"}, r"""\b\w+\.Map(Get|Post|Put|Patch|Delete)\s*\(\s*"([^"]+)\""""),
     ("react-router", "screen", {".jsx", ".tsx", ".js", ".ts"}, r"""<Route\b[^>]*\bpath\s*=\s*['"{]+([^'"}]+)"""),
     ("react-router-objects", "screen", {".jsx", ".tsx", ".js", ".ts"},

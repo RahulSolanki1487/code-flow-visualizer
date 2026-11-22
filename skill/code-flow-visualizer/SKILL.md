@@ -20,7 +20,7 @@ a file list and notes on anything uncertain.
 Decide two things before reading much code:
 - **Entry point** – a route (`POST /orders`), a screen (`LoginPage`), a command (`cli sync`), a job or event handler.
 - **Mode**
-  - `code` – execution path of one entry point (controller → service → repo → DB). Diagram: `sequence` or `flowchart`.
+  - `code` – execution path of one entry point (controller → service → repo → DB). Diagram: `sequence` or `flowchart`; for a status/workflow lifecycle use `state` (nodes = states, edges = transitions, e.g. `Draft → Issued → Paid`).
   - `user` – screens and user actions (Login → Dashboard → Checkout). Diagram: `flowchart`.
 
 If the user gave no entry point, run:
@@ -66,6 +66,7 @@ It parses the generated Mermaid for every flow. Exit 2 means the checker is not 
 ### 6. Render
 ```bash
 python scripts/render_page.py flow.json -o flow.html            # CDN libraries
+python scripts/render_page.py flow.json -o flow.html --repo <repo_path>  # adds "Open in VS Code" links
 python scripts/render_page.py flow.json -o flow.html --offline  # see note below
 ```
 `--offline` inlines Bootstrap/Mermaid from `assets/vendor/` if those files exist

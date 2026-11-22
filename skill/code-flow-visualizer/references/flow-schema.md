@@ -43,7 +43,7 @@
 | `id` | yes | unique, snake_case |
 | `title` | yes | shown in sidebar and header |
 | `mode` | yes | `code` or `user` |
-| `diagram` | no | `flowchart` (default) or `sequence` |
+| `diagram` | no | `flowchart` (default), `sequence` or `state` |
 | `direction` | no | flowchart only: `TD` (default) or `LR` |
 | `summary` | yes | 1–3 sentences |
 | `entry` | yes | node id of the starting node |

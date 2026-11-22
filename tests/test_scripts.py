@@ -112,3 +112,64 @@ def test_generated_diagrams_cover_all_flows():
     import check_mermaid
     ids = [d["id"] for d in check_mermaid.diagrams(load())]
     assert ids == [f["id"] for f in load()["flows"]]
+
+
+def test_new_entry_point_patterns(tmp_path):
+    (tmp_path / "main.go").write_text('r.GET("/users/:id", h)\nmux.HandleFunc("/health", h)\n', encoding="utf-8")
+    (tmp_path / "web.php").write_text("Route::get('/orders', [C::class, 'i']);\n", encoding="utf-8")
+    (tmp_path / "routes.rb").write_text("  get '/orders', to: 'orders#index'\n", encoding="utf-8")
+    (tmp_path / "svc.proto").write_text("service S {\n  rpc GetUser (Req) returns (Res);\n}\n", encoding="utf-8")
+    (tmp_path / "page.tsx").write_text("export default async function DashboardPage() {}\n", encoding="utf-8")
+    (tmp_path / "routes.tsx").write_text('const r = [{\n  path: "/login",\n  element: <Login />,\n}];\n', encoding="utf-8")
+    found = {(h["framework"], h["match"]) for h in find_entry_points.scan(tmp_path, 50)}
+    assert {("go-http", "GET /users/:id"), ("go-http", "HandleFunc /health"), ("laravel", "get /orders"),
+            ("rails", "get /orders"), ("grpc", "GetUser"), ("nextjs", "DashboardPage"),
+            ("react-router-objects", "/login")} <= found
+
+
+STATE_FLOW = {
+    "id": "inv", "title": "Invoice", "mode": "code", "diagram": "state", "summary": "s", "entry": "draft",
+    "nodes": [
+        {"id": "draft", "label": "Draft", "type": "logic", "description": "d", "file": "a.py", "line": 1},
+        {"id": "paid", "label": "Paid: done", "type": "data", "description": "d", "file": "a.py", "line": 1},
+        {"id": "oops", "label": "Error", "type": "error", "description": "d", "file": "a.py", "line": 1},
+    ],
+    "edges": [{"from": "draft", "to": "paid", "label": "pay: now"}, {"from": "paid", "to": "oops", "kind": "error"}],
+}
+
+
+def test_state_diagram_is_valid_and_rendered():
+    errors, _ = validate_flow.validate({"flows": [STATE_FLOW]}, None)
+    assert errors == []
+    mm = render_page.state(STATE_FLOW)
+    assert mm.startswith("stateDiagram-v2")
+    assert "[*] --> draft" in mm
+    assert "draft --> paid : pay  now" in mm  # colon in a label would break the transition syntax
+    assert "oops --> [*]" in mm                # sink state ends the diagram
+    assert "class oops err" in mm
+
+
+def test_unknown_diagram_type_rejected():
+    flow = {**STATE_FLOW, "diagram": "pie"}
+    errors, _ = validate_flow.validate({"flows": [flow]}, None)
+    assert any("diagram must be one of" in e for e in errors)
+
+
+def test_vscode_links(tmp_path):
+    url = render_page.vscode_url(tmp_path, "src/a.py", 12)
+    assert url.startswith("vscode://file/") and url.endswith("src/a.py:12")
+    assert render_page.vscode_url(None, "src/a.py", 12) == ""
+    assert render_page.vscode_url(tmp_path, None, 12) == ""
+    steps = render_page.build_flow(STATE_FLOW, tmp_path)["steps"]
+    assert all(s["vscode"] for s in steps)
+    assert not any(s["vscode"] for s in render_page.build_flow(STATE_FLOW)["steps"])
+
+
+def test_state_diagram_parses_in_mermaid():
+    import check_mermaid
+    try:
+        res = check_mermaid.run_checker([{"id": "s", "text": render_page.state(STATE_FLOW)}])
+    except check_mermaid.CheckerUnavailable:
+        import pytest
+        pytest.skip("Node/mermaid-check dependencies not installed")
+    assert res[0]["ok"], res

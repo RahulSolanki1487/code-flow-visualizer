@@ -28,6 +28,8 @@ PATTERNS = [
     ("aspnet", "route", {".cs"}, r"""\[(HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*(?:\(\s*"([^"]*)")?"""),
     ("aspnet-minimal", "route", {".cs"}, r"""\b\w+\.Map(Get|Post|Put|Patch|Delete)\s*\(\s*"([^"]+)\""""),
     ("react-router", "screen", {".jsx", ".tsx", ".js", ".ts"}, r"""<Route\b[^>]*\bpath\s*=\s*['"{]+([^'"}]+)"""),
+    ("react-router-objects", "screen", {".jsx", ".tsx", ".js", ".ts"},
+     r"""^\s*path:\s*['"]([^'"]+)['"],\s*(?:element|Component|lazy)\b()"""),
     ("angular", "screen", {".ts"}, r"""\bpath\s*:\s*['"]([^'"]*)['"]\s*,\s*(?:component|loadChildren|loadComponent)"""),
     ("flutter", "screen", {".dart"}, r"""(?:GoRoute\s*\(\s*path\s*:|['"](/[\w/:-]*)['"]\s*:\s*\()\s*['"]?([^'",)]*)"""),
     ("cli", "main", {".py"}, r"""if\s+__name__\s*==\s*['"]__main__['"]()()"""),
@@ -35,6 +37,12 @@ PATTERNS = [
     ("cli", "command", {".py"}, r"""@\w+\.command\s*\(\s*(?:['"]([^'"]*)['"])?()"""),
     ("jobs", "job", {".py"}, r"""@(?:\w+\.)?(task|shared_task|periodic_task)\b()"""),
     ("jobs", "job", {".java", ".kt"}, r"""@(Scheduled|KafkaListener|RabbitListener)\b()"""),
+    ("go-http", "route", {".go"},
+     r"""(?:\w+)\.(GET|POST|PUT|PATCH|DELETE|Get|Post|Put|Patch|Delete|HandleFunc|Handle)\s*\(\s*"([^"]+)\""""),
+    ("laravel", "route", {".php"}, r"""Route::(get|post|put|patch|delete|any|resource|apiResource)\s*\(\s*['"]([^'"]+)"""),
+    ("rails", "route", {".rb"}, r"""^\s*(get|post|put|patch|delete|resources|resource|root)\s+['":]?([\w/:.-]*)""" ),
+    ("grpc", "rpc", {".proto"}, r"""^\s*rpc\s+(\w+)\s*\(()"""),
+    ("nextjs", "screen", {".tsx", ".jsx", ".ts", ".js"}, r"""^export\s+default\s+(?:async\s+)?function\s+(\w*Page)\b()"""),
 ]
 COMPILED = [(fw, kind, exts, re.compile(rx, re.MULTILINE)) for fw, kind, exts, rx in PATTERNS]
 

@@ -11,6 +11,10 @@
 | **React / Next.js** | routes in `App.tsx` (`<Route>`), `pages/`, `app/` dirs | context providers, hooks, API clients | page → component → hook → API call |
 | **Angular** | `RouterModule.forRoot(routes)` | `providedIn`, module providers | route → component → service → HttpClient |
 | **Flutter** | `MaterialApp(routes:)`, `Navigator.push`, go_router | Provider/Riverpod/Bloc | screen → widget → bloc/provider → repository |
+| **Go** | `r.GET(...)` (gin/echo/chi), `mux.HandleFunc`, `func main` | router setup in `main`/`routes.go`, middleware chains | handler → service → repo |
+| **Laravel** | `Route::get/post(...)` in `routes/*.php` | service providers, middleware aliases | controller → service → Eloquent model |
+| **Rails** | `config/routes.rb` (`get`, `resources`) | `before_action`, concerns | controller → model/service |
+| **gRPC** | `rpc Name(...)` in `.proto` | service implementation registration | rpc → service impl → repo |
 | **CLI (any)** | `main()`, `argparse`, `click`, `commander`, `cobra` | subcommand registration | command → handler → core |
 | **Jobs / events** | cron config, `@Scheduled`, Celery `@task`, queue consumers | broker config | trigger → handler → service |
 

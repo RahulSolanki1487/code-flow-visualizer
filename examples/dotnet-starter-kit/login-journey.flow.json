@@ -1,0 +1,64 @@
+{
+  "project": "dotnet-starter-kit",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "dashboard_login",
+      "title": "Dashboard login journey (React)",
+      "mode": "user",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "A visitor hitting a protected page waits for a silent token refresh, is redirected to /login if there is no session, signs in (with an optional 2FA code step) and is sent back to the page they came from.",
+      "entry": "visit",
+      "nodes": [
+        { "id": "visit", "label": "Open protected page", "type": "ui", "file": "clients/dashboard/src/routes.tsx", "line": 170,
+          "description": "All app pages sit under a route whose element is ProtectedRoute, so every visit passes through it first.",
+          "snippet": "element: <ProtectedRoute />," },
+        { "id": "init", "label": "Restoring session?", "type": "decision", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 13,
+          "description": "While isInitializing is true (silent refresh with a stored refresh token), a spinner shows. It neither flashes the dashboard nor bounces to /login yet.",
+          "snippet": "if (isInitializing) {" },
+        { "id": "authed", "label": "Authenticated?", "type": "decision", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 29,
+          "description": "Unauthenticated visitors are redirected to /login, remembering the original location in router state.",
+          "snippet": "return <Navigate to=\"/login\" replace state={{ from: location }} />;" },
+        { "id": "page", "label": "Requested page", "type": "ui", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 33,
+          "description": "Outlet renders the requested child route.",
+          "snippet": "return <Outlet />;" },
+        { "id": "login_page", "label": "Login page", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 66,
+          "description": "Email, password and tenant form. Submitting calls performLogin. A visitor who is already authenticated is sent straight on.",
+          "snippet": "const performLogin = async (creds: Credentials) => {" },
+        { "id": "login_call", "label": "login() API call", "type": "external", "file": "clients/dashboard/src/auth/auth-context.tsx", "line": 223,
+          "description": "AuthContext.login calls the identity API, stores the tokens and clears cached query state." },
+        { "id": "need_2fa", "label": "2FA required?", "type": "decision", "file": "clients/dashboard/src/pages/login.tsx", "line": 75,
+          "description": "If the server says the password was right but 2FA is on, the credentials are held in component state and the code step is shown.",
+          "snippet": "if (isTwoFactorRequiredError(err)) {" },
+        { "id": "code_step", "label": "Enter 2FA code", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 94,
+          "description": "verifyCode repeats login with the code. A wrong code clears the field and shows an error without leaving the step.",
+          "snippet": "const verifyCode = async (attempt: Credentials & { twoFactorCode: string }) => {" },
+        { "id": "login_error", "label": "Show login error", "type": "error", "file": "clients/dashboard/src/pages/login.tsx", "line": 85,
+          "description": "Any other failure shows the server's problem detail, or a generic message.",
+          "snippet": "setError(errorMessage(err));" },
+        { "id": "back", "label": "Back to origin page", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 73,
+          "description": "On success the user is navigated to the page they came from (or /), replacing the login entry in history.",
+          "snippet": "navigate(from, { replace: true });" }
+      ],
+      "edges": [
+        { "from": "visit", "to": "init" },
+        { "from": "init", "to": "authed", "label": "done" },
+        { "from": "authed", "to": "page", "label": "yes" },
+        { "from": "authed", "to": "login_page", "label": "no: redirect /login" },
+        { "from": "login_page", "to": "login_call", "label": "submits form" },
+        { "from": "login_call", "to": "back", "label": "success" },
+        { "from": "login_call", "to": "need_2fa", "label": "rejected", "kind": "error" },
+        { "from": "need_2fa", "to": "code_step", "label": "yes" },
+        { "from": "need_2fa", "to": "login_error", "label": "no", "kind": "error" },
+        { "from": "code_step", "to": "login_call", "label": "submits code" },
+        { "from": "login_error", "to": "login_page", "label": "tries again" },
+        { "from": "back", "to": "page" }
+      ],
+      "notes": [
+        "Silent refresh happens in AuthContext at boot (auth-context.tsx, isInitializing); its failure path was only skimmed.",
+        "Demo-account sign-in (onPickDemo) goes through the same performLogin and is not drawn separately."
+      ]
+    }
+  ]
+}

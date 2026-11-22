@@ -1,0 +1,7 @@
+{
+  "name": "mermaid-check",
+  "private": true,
+  "type": "module",
+  "description": "Optional Mermaid syntax checker used by check_mermaid.py. Run `npm install` here once.",
+  "dependencies": { "jsdom": "^26.0.0", "mermaid": "^11.4.0" }
+}

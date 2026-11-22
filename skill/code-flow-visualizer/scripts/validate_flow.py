@@ -15,6 +15,33 @@ NODE_TYPES = {"entry", "logic", "data", "external", "decision", "error", "ui", "
 EDGE_KINDS = {"normal", "error", "async"}
 MAX_NODES = 40
 MAX_LABEL = 40
+SNIPPET_NEAR = 15  # a snippet should start within this many lines of the cited line
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def check_snippet(file_lines: list[str], snippet: str, line: int) -> str | None:
+    """Return a problem description, or None if the snippet is real and near `line`.
+
+    Each snippet line must appear in the file (whitespace-insensitive). A line
+    containing '...' only has to match the text before the ellipsis.
+    """
+    norm_file = [_norm(x) for x in file_lines]
+    first_hit = None
+    for raw in snippet.splitlines():
+        want = _norm(raw.split("...")[0])
+        if not want:
+            continue
+        hits = [i + 1 for i, x in enumerate(norm_file) if want in x]
+        if not hits:
+            return f"snippet line not found in file: {want[:60]!r}"
+        if first_hit is None:
+            first_hit = min(hits, key=lambda h: abs(h - line))
+    if first_hit is not None and abs(first_hit - line) > SNIPPET_NEAR:
+        return f"snippet found at line {first_hit}, but node cites line {line}"
+    return None
 
 
 def validate(data: dict, repo: Path | None):
@@ -25,7 +52,7 @@ def validate(data: dict, repo: Path | None):
     flow_ids = [f.get("id") for f in flows]
     if len(set(flow_ids)) != len(flow_ids):
         errors.append("duplicate flow ids")
-    line_cache: dict[str, int] = {}
+    line_cache: dict[str, list[str]] = {}
 
     for f in flows:
         fid = f.get("id", "?")
@@ -80,10 +107,16 @@ def validate(data: dict, repo: Path | None):
                 warnings.append(f"{np_}: no line number")
                 continue
             if file_ not in line_cache:
-                with open(path, "rb") as fh:
-                    line_cache[file_] = sum(1 for _ in fh)
-            if not isinstance(line, int) or line < 1 or line > line_cache[file_]:
-                errors.append(f"{np_}: line {line} out of range (file has {line_cache[file_]} lines)")
+                line_cache[file_] = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+            total = len(line_cache[file_])
+            if not isinstance(line, int) or line < 1 or line > total:
+                errors.append(f"{np_}: line {line} out of range (file has {total} lines)")
+                continue
+            if n.get("snippet"):
+                problem = check_snippet(line_cache[file_], n["snippet"], line)
+                if problem:
+                    # invented code is an error; merely distant code is a warning
+                    (warnings if "but node cites" in problem else errors).append(f"{np_}: {problem}")
 
         reached = set()
         for i, e in enumerate(f.get("edges", [])):

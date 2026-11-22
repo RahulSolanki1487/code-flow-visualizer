@@ -38,6 +38,9 @@ Follow calls from the entry point:
 - Default **max depth 5**. Stop at framework/library boundaries (don't trace into node_modules, site-packages, JDK).
 - Record branches (if/else, switch), loops worth mentioning, async/await, queues/events, DB reads/writes, external HTTP calls, error/exception paths.
 - **Read the code you cite.** Every node needs a real `file` and `line`.
+- **Trace the cross-cutting pipeline, not just the handler.** Real requests pass through code the handler never mentions: auth/permission policies, endpoint filters, mediator/pipeline behaviors, ORM save interceptors, global exception handlers, middleware. Find where each is *registered* (grep `AddTransient(typeof(IPipelineBehavior`, `.WithIdempotency`, `ISaveChangesInterceptor`, `UseExceptionHandler`, `app.Use*`) and add a node for each that affects behavior.
+- **Confirm registration before drawing a hop.** A class that looks like part of the flow may never be wired up (dead code). Grep for its call sites; if none, leave it out and mention it in `notes`.
+- **Snippets are copied, not recalled.** Copy lines verbatim from the cited file, near the cited `line`. The validator rejects snippets that do not exist in the file.
 - If a hop is not visible in code (DI container, reflection, event bus, config-driven routing), still add it but set `"inferred": true` and say why in `note`.
 
 ### 4. Model
@@ -51,8 +54,14 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 ```bash
 python scripts/validate_flow.py flow.json --repo <repo_path>
 ```
-Fix every error (missing files, lines out of range, dangling edges) and re-run until clean.
+Fix every error (missing files, lines out of range, dangling edges, snippet text that is not in the file) and re-run until clean.
 Warnings about inferred edges are fine.
+
+Optional but recommended (needs Node; one-time `npm install` in `scripts/mermaid-check/`):
+```bash
+python scripts/check_mermaid.py flow.json
+```
+It parses the generated Mermaid for every flow. Exit 2 means the checker is not installed (nothing was checked).
 
 ### 6. Render
 ```bash
@@ -77,6 +86,7 @@ steps, and anything inferred or risky (from `notes`).
 - `scripts/find_entry_points.py` – heuristics for routes/handlers/main across common stacks
 - `scripts/validate_flow.py` – schema + file:line checks
 - `scripts/render_page.py` – JSON → Mermaid → HTML
+- `scripts/check_mermaid.py` – optional Mermaid syntax check (Node)
 - `references/flow-schema.md` – the `flow.json` format
 - `references/mermaid-patterns.md` – safe Mermaid patterns and escaping rules
 - `references/frameworks.md` – where to look per framework

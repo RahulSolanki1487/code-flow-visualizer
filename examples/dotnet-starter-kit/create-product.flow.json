@@ -1,0 +1,291 @@
+{
+  "project": "dotnet-starter-kit",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "create_product",
+      "title": "POST /api/v1/catalog/products – create product",
+      "mode": "code",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "A minimal-API endpoint sends CreateProductCommand through Mediator. Permission and idempotency run as endpoint metadata/filters, FluentValidation runs as a pipeline behavior, and the handler checks brand, category, SKU and slug before saving. SaveChanges triggers an audit interceptor and then publishes ProductCreatedDomainEvent.",
+      "entry": "endpoint",
+      "nodes": [
+        {
+          "id": "endpoint",
+          "label": "POST /products",
+          "type": "entry",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductEndpoint.cs",
+          "line": 16,
+          "description": "Mapped on the catalog group (api/v{version}/catalog, RequireAuthorization). Declares the Products.Create permission and idempotency filter, then sends the command to Mediator.",
+          "snippet": "return endpoints.MapPost(\"/products\",\n.RequirePermission(CatalogPermissions.Products.Create)\n.WithIdempotency();"
+        },
+        {
+          "id": "authz",
+          "label": "Permission check",
+          "type": "decision",
+          "file": "src/Modules/Identity/Modules.Identity/Authorization/RequiredPermissionAuthorizationHandler.cs",
+          "line": 9,
+          "description": "UseAuthorization runs the RequiredPermission policy, which reads the endpoint's RequiredPermissionAttribute metadata. Missing permission yields 403, no token 401.",
+          "inferred": true,
+          "note": "Policy wiring is in JwtAuthenticationExtensions (default and fallback policy); the handler body was not traced line by line."
+        },
+        {
+          "id": "idem",
+          "label": "Idempotency filter",
+          "type": "decision",
+          "file": "src/BuildingBlocks/Web/Idempotency/IdempotencyEndpointFilter.cs",
+          "line": 71,
+          "description": "Opt-in via the Idempotency-Key header. Without it the request passes straight through. With it, a cached response is replayed, concurrent duplicates are rejected, and the first response is stored.",
+          "snippet": "if (string.IsNullOrWhiteSpace(idempotencyKey))\n{\n    return await next(context).ConfigureAwait(false);\n}"
+        },
+        {
+          "id": "mediator",
+          "label": "mediator.Send",
+          "type": "logic",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductEndpoint.cs",
+          "line": 18,
+          "description": "Dispatches the command to the pipeline behaviors and then the handler."
+        },
+        {
+          "id": "validation",
+          "label": "ValidationBehavior",
+          "type": "decision",
+          "file": "src/BuildingBlocks/Web/Mediator/Behaviors/ValidationBehavior.cs",
+          "line": 17,
+          "description": "Pipeline behavior registered open-generic in Web/Extensions.cs. Runs every IValidator<CreateProductCommand> and throws ValidationException on any failure.",
+          "snippet": "public async ValueTask<TResponse> Handle("
+        },
+        {
+          "id": "validator",
+          "label": "CreateProductCommandValidator",
+          "type": "logic",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandValidator.cs",
+          "line": 10,
+          "description": "Rules: Sku required and max 64, Name required and max 200, brand and category ids non-empty, price and stock >= 0, currency exactly 3 chars."
+        },
+        {
+          "id": "handler",
+          "label": "CreateProductCommandHandler",
+          "type": "logic",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 16,
+          "description": "Orchestrates the existence checks, builds the aggregate, checks SKU and slug uniqueness and saves."
+        },
+        {
+          "id": "brand_check",
+          "label": "Brand exists?",
+          "type": "decision",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 20,
+          "description": "AnyAsync on Brands by BrandId."
+        },
+        {
+          "id": "cat_check",
+          "label": "Category exists?",
+          "type": "decision",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 29,
+          "description": "AnyAsync on Categories by CategoryId."
+        },
+        {
+          "id": "create",
+          "label": "Product.Create",
+          "type": "logic",
+          "file": "src/Modules/Catalog/Modules.Catalog/Domain/Product.cs",
+          "line": 43,
+          "description": "Domain factory: guards, trims, upper-cases the SKU, builds the slug from the name, generates a Guid v7 id and queues ProductCreatedDomainEvent.",
+          "snippet": "public static Product Create("
+        },
+        {
+          "id": "sku_check",
+          "label": "SKU taken?",
+          "type": "decision",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 47,
+          "description": "Checks the normalized SKU. Done after Create so the comparison uses the same upper-cased value."
+        },
+        {
+          "id": "slug_check",
+          "label": "Slug taken?",
+          "type": "decision",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 59,
+          "description": "Checks the generated slug, so two different names that slugify the same collide."
+        },
+        {
+          "id": "save",
+          "label": "SaveChangesAsync",
+          "type": "data",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductCommandHandler.cs",
+          "line": 71,
+          "description": "Adds the product to CatalogDbContext and commits. Returns the new product id.",
+          "snippet": "dbContext.Products.Add(product);\nawait dbContext.SaveChangesAsync(cancellationToken)"
+        },
+        {
+          "id": "audit_int",
+          "label": "Auditable interceptor",
+          "type": "logic",
+          "file": "src/BuildingBlocks/Persistence/Inteceptors/AuditableEntitySaveChangesInterceptor.cs",
+          "line": 27,
+          "description": "SavingChangesAsync hook stamping audit fields before the write.",
+          "inferred": true,
+          "note": "Registered as an ISaveChangesInterceptor in PersistenceExtensions; stamped fields not read in detail."
+        },
+        {
+          "id": "events_int",
+          "label": "DomainEventsInterceptor",
+          "type": "event",
+          "file": "src/BuildingBlocks/Persistence/Inteceptors/DomainEventsInterceptor.cs",
+          "line": 35,
+          "description": "After the commit, collects pending domain events from tracked entities and publishes each through Mediator. Handler failures are logged, never rethrown.",
+          "snippet": "public override async ValueTask<int> SavedChangesAsync("
+        },
+        {
+          "id": "event_handler",
+          "label": "CatalogEventHandlers",
+          "type": "event",
+          "file": "src/Modules/Catalog/Modules.Catalog/Events/CatalogEventHandlers.cs",
+          "line": 11,
+          "description": "Handles ProductCreatedDomainEvent. Currently only writes an information log line."
+        },
+        {
+          "id": "ok",
+          "label": "200 OK + product id",
+          "type": "ui",
+          "file": "src/Modules/Catalog/Modules.Catalog/Features/v1/Products/CreateProduct/CreateProductEndpoint.cs",
+          "line": 18,
+          "description": "Results.Ok wraps the Guid. With an Idempotency-Key the response is also cached for replay."
+        },
+        {
+          "id": "exc_handler",
+          "label": "GlobalExceptionHandler",
+          "type": "error",
+          "file": "src/BuildingBlocks/Web/Exceptions/GlobalExceptionHandler.cs",
+          "line": 112,
+          "description": "Registered via UseExceptionHandler. Maps ValidationException to 400, CustomException to its own status (404 not found, 409 conflict) and anything else to 500, as ProblemDetails."
+        }
+      ],
+      "edges": [
+        {
+          "from": "endpoint",
+          "to": "authz",
+          "label": "request"
+        },
+        {
+          "from": "authz",
+          "to": "idem",
+          "label": "allowed",
+          "inferred": true
+        },
+        {
+          "from": "idem",
+          "to": "mediator",
+          "label": "no key / first call"
+        },
+        {
+          "from": "mediator",
+          "to": "validation",
+          "label": "behavior"
+        },
+        {
+          "from": "validation",
+          "to": "validator",
+          "label": "validates"
+        },
+        {
+          "from": "validation",
+          "to": "handler",
+          "label": "valid"
+        },
+        {
+          "from": "validation",
+          "to": "exc_handler",
+          "label": "ValidationException",
+          "kind": "error"
+        },
+        {
+          "from": "handler",
+          "to": "brand_check"
+        },
+        {
+          "from": "brand_check",
+          "to": "cat_check",
+          "label": "yes"
+        },
+        {
+          "from": "brand_check",
+          "to": "exc_handler",
+          "label": "NotFound",
+          "kind": "error"
+        },
+        {
+          "from": "cat_check",
+          "to": "create",
+          "label": "yes"
+        },
+        {
+          "from": "cat_check",
+          "to": "exc_handler",
+          "label": "NotFound",
+          "kind": "error"
+        },
+        {
+          "from": "create",
+          "to": "sku_check"
+        },
+        {
+          "from": "sku_check",
+          "to": "slug_check",
+          "label": "free"
+        },
+        {
+          "from": "sku_check",
+          "to": "exc_handler",
+          "label": "409",
+          "kind": "error"
+        },
+        {
+          "from": "slug_check",
+          "to": "save",
+          "label": "free"
+        },
+        {
+          "from": "slug_check",
+          "to": "exc_handler",
+          "label": "409",
+          "kind": "error"
+        },
+        {
+          "from": "save",
+          "to": "audit_int",
+          "label": "SavingChanges",
+          "inferred": true
+        },
+        {
+          "from": "save",
+          "to": "events_int",
+          "label": "SavedChanges",
+          "kind": "async"
+        },
+        {
+          "from": "events_int",
+          "to": "event_handler",
+          "label": "Publish event",
+          "kind": "async"
+        },
+        {
+          "from": "save",
+          "to": "ok",
+          "label": "returns id"
+        }
+      ],
+      "notes": [
+        "BuildingBlocks/Web/Mediator/Extensions.cs has EnableMediator, which also registers ValidationBehavior, but nothing calls it. Only Web/Extensions.cs:207 takes effect.",
+        "MediatorTracingBehavior is registered only when OpenTelemetry tracing is enabled, so a trace span may wrap the pipeline.",
+        "SKU and slug uniqueness are check-then-insert, so two concurrent creates can both pass. Only a database unique index would catch the race (not verified).",
+        "Domain event handler failures are swallowed after the commit, so there is no guaranteed delivery."
+      ]
+    }
+  ]
+}

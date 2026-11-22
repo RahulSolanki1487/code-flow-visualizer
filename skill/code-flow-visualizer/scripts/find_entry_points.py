@@ -39,6 +39,15 @@ PATTERNS = [
 COMPILED = [(fw, kind, exts, re.compile(rx, re.MULTILINE)) for fw, kind, exts, rx in PATTERNS]
 
 
+def is_commented(text: str, pos: int, ext: str) -> bool:
+    """True if the match at `pos` sits on a comment/doc-comment line (e.g. C# `///` examples)."""
+    start = text.rfind("\n", 0, pos) + 1
+    prefix = text[start:pos].lstrip()
+    if ext in {".py", ".rb"}:
+        return prefix.startswith("#")
+    return prefix.startswith(("//", "*", "/*"))
+
+
 def scan(repo: Path, limit: int):
     hits = []
     for root, dirs, files in os.walk(repo):
@@ -59,6 +68,8 @@ def scan(repo: Path, limit: int):
                 if ext not in exts:
                     continue
                 for m in rx.finditer(text):
+                    if is_commented(text, m.start(), ext):
+                        continue
                     line = text.count("\n", 0, m.start()) + 1
                     groups = [g for g in m.groups() if g]
                     hits.append({"framework": fw, "kind": kind, "file": rel, "line": line,

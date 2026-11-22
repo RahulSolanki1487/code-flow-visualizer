@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SKILL = ROOT / "skill" / "code-flow-visualizer"
 DIST = ROOT / "dist"
+EXCLUDED_DIRS = {"__pycache__", "node_modules"}  # node_modules: optional mermaid-check deps
 
 
 def main():
@@ -13,7 +14,7 @@ def main():
     out = DIST / "code-flow-visualizer.zip"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(SKILL.rglob("*")):
-            if path.is_file() and "__pycache__" not in path.parts and path.name != ".gitkeep":
+            if path.is_file() and not EXCLUDED_DIRS.intersection(path.parts) and path.name != ".gitkeep":
                 zf.write(path, Path("code-flow-visualizer") / path.relative_to(SKILL))
     print(f"wrote {out}")
 

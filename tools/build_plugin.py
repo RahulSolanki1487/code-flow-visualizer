@@ -80,7 +80,7 @@ def main(argv=None) -> int:
     ap.add_argument("--extra-skills", nargs="*", default=[], type=Path)
     ap.add_argument("--offline", action="store_true", help="include vendored libraries (run package_skill.py --offline --fetch first)")
     ap.add_argument("--author", help="author name for plugin.json (optional; the plugin validator warns without it)")
-    ap.add_argument("--license", dest="license_id", help="SPDX id for plugin.json, e.g. MIT (the repo has no LICENSE file yet)")
+    ap.add_argument("--license", dest="license_id", help="SPDX id for plugin.json, e.g. MIT")
     ap.add_argument("--zip", action="store_true")
     args = ap.parse_args(argv)
     if args.offline and len(skill_files.vendor_files()) < 4:

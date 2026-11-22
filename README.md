@@ -65,3 +65,7 @@ tests/                        pytest for the scripts
 tools/                        packaging
 docs/                         plan & analysis
 ```
+
+## License
+
+[MIT](LICENSE)

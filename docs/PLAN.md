@@ -135,7 +135,13 @@ full path (`/api/articles/{slug}/favorite`), and the Angular frontend should mat
 | 7.4 | Re-run the Angular frontend against all five RealWorld backends and record the results in `docs/TEST-REPOS.md` | all five at 18 of 18 (the frontend has 18 calls, not 13: 5 were hidden by line-split chains until fixed) exact, or a documented reason | [x] done: Angular and Vue against all five backends, 10 of 10 pairs at 18 of 18 exact (Spring with `--base-url web=none`; the default run prints a HINT). Results in `docs/TEST-REPOS.md` |
 | 7.5 | FastAPI `include_router` prefixes; generated TypeScript clients (`{ url: '...' }`) | fastapi template: items/login/users routes with `/api/v1` prefix; frontend calls found | [x] done: 23 routes, all with `/api/v1`, none unknown; the generated client's 23 calls are found and all match; the entry-point scan's name for FastAPI/Flask (`fastapi/flask`) had never matched the alias, fixed |
 | 7.6 | Express multi-level `router.use`; frontend wrapper services (`ApiService.get('articles')`) | node-express-realworld: no "prefix unknown"; Vue app calls found | [x] done: `express_routes.py` router graph (chained `.use`, anonymous default exports, imports, `route().get().post()`): 20 routes, all with `/api`; wrapper detection (`ApiService.get('articles', slug)`, verbs `update`/`query`, slug segments) finds the Vue app's 18 calls; `API_URL = ... || "https://host/api"` constants give a base URL |
-| 7.7 | GraphQL (operation names) and gRPC (`.proto` services) | design note first, then a small demo pair | [ ] |
+| 7.7a GraphQL: schema (SDL files, `gql` templates) and resolvers on the backend; `gql` operations and the client `uri` on the frontend | Apollo fullstack-tutorial: every client operation matches a Query/Mutation field; resolvers located | [ ] |
+| 7.7b gRPC: `.proto` services and their implementations on the backend; generated-client calls (grpc-web, Connect) on the frontend | grpc-web helloworld: both rpcs matched as `POST /helloworld.Greeter/<Method>` | [ ] |
+
+Design for 7.7 (both map onto the existing call/route model, so matching, base URLs, gateway rules and the stitcher keep working):
+- GraphQL: an operation is method `QUERY` / `MUTATION` / `SUBSCRIPTION` with path `<endpoint>/<rootField>`; the endpoint defaults to `/graphql` and is read from the client `uri` and the server config. A document with several root fields gives one call per field.
+- gRPC: an rpc is `POST /<package>.<Service>/<Method>` (the real path gRPC-Web and Connect send). A frontend that does not know the package uses `/{}.Service/Method`.
+- A route points at its resolver / implementation when found, else at the schema / `.proto` line.
 
 Rule for every item: unit tests with synthetic fixtures, a run on the public repos, and the tracker above updated.
 

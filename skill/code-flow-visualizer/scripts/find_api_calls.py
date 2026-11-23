@@ -217,9 +217,29 @@ def substitute_constants(text: str) -> str:
         pos = m.end()
 
 
-def find_calls_in_text(text: str, rel: str) -> list[dict]:
+URL_PROPERTY_RE = re.compile(r"""\burl\s*:\s*(?=['"`])""")
+# generated clients: `(options.client ?? client).post<R, E>({ url: '/api/v1/x', ... })`
+PAREN_CALL_RE = re.compile(r"""\)\s*\.\s*(get|post|put|patch|delete|head|options)\s*(?:<[^()]*?>)?\s*\(\s*(?=\{)""")
+
+
+def url_from_options(args: str):
+    """`{ url: '/x', ...options }` -> (url, dynamic) or None. Used by generated clients (hey-api, openapi-typescript-codegen)."""
+    m = URL_PROPERTY_RE.search(args)
+    if not m:
+        return None
+    url, _end, dynamic = read_string_literal(args, m.end())
+    return (url, dynamic) if url is not None else None
+
+
+def find_calls_in_text(text: str, rel: str, wrapper_names=()) -> list[dict]:
     text = substitute_constants(text)
     calls = []
+    for m in PAREN_CALL_RE.finditer(text):
+        found = url_from_options(call_arguments(text, m.end()))
+        if found and found[0].startswith("/"):
+            calls.append({"file": rel, "line": text.count("\n", 0, m.start()) + 1, "callee": ")." + m.group(1),
+                          "methods": [m.group(1).upper()], "url": clean_url(found[0]), "dynamic": found[1],
+                          "base_unknown": False, "optional_suffix": False, "unresolved": False})
     for m in CALL_RE.finditer(text):
         if re.search(r"(function|def|async|Future<\w+>)\s+$", text[max(0, m.start() - 24):m.start()]):
             continue  # a definition such as `export async function apiFetch<T>(`, not a call
@@ -227,6 +247,12 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
         url, _end, dynamic, base_unknown, optional_suffix = read_url_argument(text, m.end())
         callee = re.sub(r"\s+", "", m.group(1))
         args = call_arguments(text, m.end())
+        if url is None and args.lstrip().startswith("{"):   # client.get({ url: '/x' })
+            found = url_from_options(args)
+            if found and found[0].startswith("/"):
+                url, dynamic = found
+        if url is not None and re.fullmatch(r"(?:/?\{\})+", url):
+            url = None  # `${BASE}/${path}`: nothing but parameters says nothing about which route is called
         base = {"file": rel, "line": start_line, "callee": callee, "methods": methods_for(callee, args)}
         if url is None:
             calls.append({**base, "url": None, "dynamic": False, "base_unknown": False,
@@ -236,6 +262,9 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
             continue  # relative non-API strings such as 'items' are too ambiguous
         calls.append({**base, "url": clean_url(url), "dynamic": dynamic, "base_unknown": base_unknown,
                       "optional_suffix": optional_suffix, "unresolved": False})
+    if wrapper_names:
+        seen = {(c["line"], c["url"]) for c in calls}
+        calls.extend(c for c in find_wrapper_calls(text, rel, wrapper_names) if (c["line"], c["url"]) not in seen)
     return calls
 
 
@@ -244,7 +273,10 @@ BASE_URL_PATTERNS = (
     re.compile(r"""baseURL\s*[:=]\s*(['"`])([^'"`$]+)\1"""),
     # Angular / fetch interceptors: req.clone({ url: `https://host/api${req.url}` })
     re.compile(r"""\burl\s*:\s*`([^`$]*)\$\{\s*req(?:uest)?\.url\s*\}`"""),
+    # named constants: `API_URL = import.meta.env.VITE_API_URL || "https://host/api"`, `apiUrl: 'https://host/api'`
+    re.compile(r"""\b(?:api|base|backend|server)[_-]?(?:url|uri|path|root|prefix)\w*\s*[:=]\s*(?:[^;'"`\n]*?(?:\|\||\?\?)\s*)?(['"`])([^'"`$\n]+)\1""", re.I),
 )
+BASE_HINT_RE = re.compile(r"baseurl|req(?:uest)?\.url|(?:api|base|backend|server)[_-]?(?:url|uri|path|root|prefix)", re.I)
 
 
 def detect_base_urls(repo: Path) -> list[dict]:
@@ -263,16 +295,17 @@ def detect_base_urls(repo: Path) -> list[dict]:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            if "baseURL" not in text and "req.url" not in text and "request.url" not in text:
+            if not BASE_HINT_RE.search(text):
                 continue
             for pattern in BASE_URL_PATTERNS:
                 for m in pattern.finditer(text):
-                    raw = m.group(m.lastindex if pattern is BASE_URL_PATTERNS[0] else 1)
+                    raw = m.group(m.lastindex)   # the string value is the last group of every pattern
                     base = SCHEME_RE.sub("", raw).rstrip("/")
                     if base.startswith("/") and len(base) > 1:
                         found.append({"base": base, "file": path.relative_to(repo).as_posix(),
                                       "line": text.count("\n", 0, m.start()) + 1})
-    return found
+    unique = {(f["file"], f["line"], f["base"]): f for f in found}   # several patterns can match one line
+    return list(unique.values())
 
 
 def apply_base_url(calls: list[dict], base: str) -> list[dict]:
@@ -287,12 +320,108 @@ def apply_base_url(calls: list[dict], base: str) -> list[dict]:
     return out
 
 
-def scan(repo: Path, limit: int = 2000, base: str | None = None) -> list[dict]:
-    calls = _scan_files(repo, limit)
+WRAPPER_VERBS = {"get": "GET", "query": "GET", "post": "POST", "put": "PUT", "update": "PUT", "patch": "PATCH",
+                 "delete": "DELETE", "remove": "DELETE", "destroy": "DELETE"}
+SEGMENT_VERBS = {"get", "update", "delete", "remove", "destroy"}  # a second plain argument is a path segment, not a body
+WRAPPER_DEF_RE = re.compile(r"(?:export\s+)?(?:const|let|var|class)\s+(\w+)\s*(?:=\s*)?\{")
+# a wrapper's verb methods take the resource/url as their first parameter: get(resource, slug), post(url, body)
+WRAPPER_METHOD_RE = re.compile(
+    r"^\s{1,4}(?:async\s+)?(get|post|put|patch|delete|update|query|remove|destroy)\s*\(\s*(?:resource|url|uri|path|endpoint|route|target|api\w*)\b",
+    re.M | re.I)
+HTTP_USE_RE = re.compile(r"\bfetch\s*\(|\baxios\b|\bXMLHttpRequest\b|\$http\b|\bhttp\.(?:get|post|request)\b|\bsuper\.request\b")
+GENERIC_RECEIVERS = {"http", "httpclient", "client", "api", "dio", "ky", "axios"}  # already read by the generic call pattern
+
+
+def detect_wrappers(repo: Path) -> list[dict]:
+    """Objects/classes that wrap an HTTP client behind verb methods, e.g. `const ApiService = { get(resource, slug) {...} }`.
+
+    Returns [{"name", "file", "line"}]. A wrapper needs at least three verb methods and an HTTP client call in its file.
+    """
+    found = []
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        for name in sorted(files):
+            path = Path(root) / name
+            rel = path.relative_to(repo).as_posix()
+            if path.suffix.lower() not in EXTENSIONS or any(m in "/" + rel for m in TEST_MARKERS):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if not HTTP_USE_RE.search(text):
+                continue
+            for m in WRAPPER_DEF_RE.finditer(text):
+                if m.group(1).lower() in GENERIC_RECEIVERS:
+                    continue
+                body = text[m.end():m.end() + 3500]
+                end = re.search(r"^\}", body, re.M)          # closing brace at column 0 ends the object/class
+                methods = set(WRAPPER_METHOD_RE.findall(body[:end.start()] if end else body))
+                if len(methods) >= 3:
+                    found.append({"name": m.group(1), "file": rel, "line": text.count("\n", 0, m.start()) + 1})
+    return found
+
+
+def split_top_level(args: str) -> list[str]:
+    out, depth, quote, cur = [], 0, None, []
+    for c in args:
+        if quote:
+            cur.append(c)
+            if c == quote:
+                quote = None
+            continue
+        if c in "'\"`":
+            quote = c
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif c == "," and depth == 0:
+            out.append("".join(cur).strip())
+            cur = []
+            continue
+        cur.append(c)
+    if "".join(cur).strip():
+        out.append("".join(cur).strip())
+    return out
+
+
+def find_wrapper_calls(text: str, rel: str, names) -> list[dict]:
+    """Calls such as `ApiService.get('articles', slug)`: relative resource path, optional slug segment."""
+    calls = []
+    for name in names:
+        pattern = re.compile(r"(?<![\w.$])" + re.escape(name) + r"\s*\.\s*(" + "|".join(WRAPPER_VERBS) + r")\s*\(\s*")
+        for m in pattern.finditer(text):
+            url, _end, dynamic, base_unknown, optional_suffix = read_url_argument(text, m.end())
+            if url is None:
+                continue
+            verb = m.group(1)
+            if not url.startswith("/") and "://" not in url:
+                url = "/" + url
+            args = split_top_level(call_arguments(text, m.end()))
+            if verb in SEGMENT_VERBS and len(args) >= 2 and not args[1].startswith(("{", "[")) and not optional_suffix:
+                second = args[1]
+                if second[:1] in "'\"`":
+                    literal, _e, lit_dynamic = read_string_literal(second, 0)
+                    segment = literal if literal is not None else "{}"
+                    dynamic = dynamic or lit_dynamic
+                else:
+                    segment, dynamic = "{}", True
+                url = url.rstrip("/") + "/" + segment.strip("/")
+            calls.append({"file": rel, "line": text.count("\n", 0, m.start()) + 1, "callee": f"{name}.{verb}",
+                          "methods": [WRAPPER_VERBS[verb]], "url": clean_url(url), "dynamic": dynamic, "base_unknown": base_unknown,
+                          "optional_suffix": optional_suffix, "unresolved": False})
+    return calls
+
+
+def scan(repo: Path, limit: int = 2000, base: str | None = None, wrappers=None) -> list[dict]:
+    """`wrappers`: names of HTTP wrapper objects to read (`ApiService`); None detects them, [] reads none."""
+    names = [w["name"] for w in detect_wrappers(repo)] if wrappers is None else list(wrappers)
+    calls = _scan_files(repo, limit, names)
     return apply_base_url(calls, base) if base else calls
 
 
-def _scan_files(repo: Path, limit: int) -> list[dict]:
+def _scan_files(repo: Path, limit: int, wrapper_names=()) -> list[dict]:
     out = []
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
@@ -309,7 +438,7 @@ def _scan_files(repo: Path, limit: int) -> list[dict]:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            out.extend(find_calls_in_text(text, rel))
+            out.extend(find_calls_in_text(text, rel, wrapper_names))
             if len(out) >= limit:
                 return out[:limit]
     return out

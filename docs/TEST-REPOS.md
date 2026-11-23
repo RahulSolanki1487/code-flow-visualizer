@@ -26,25 +26,26 @@ python skill/code-flow-visualizer/scripts/match_api.py \
   --frontend web=../angular-realworld-example-app --backend api=../spring-boot-realworld-example-app
 ```
 
-## What to expect today (checked 2026-11-22, after Phase 7.1-7.3)
+## What to expect today (checked 2026-11-22, after Phase 7.0-7.6)
 
-The Angular RealWorld app adds its base URL in an HTTP interceptor (`https://api.realworld.show/api` + the call's path).
-The tool detects that (`/api`) and applies it, so the frontend's 18 calls look like `/api/articles/{}`. The report prints a
-`NOTE` saying where the base came from; `--base-url web=none` turns it off.
+Both RealWorld frontends add their base URL outside the call sites: Angular in an HTTP interceptor
+(`https://api.realworld.show/api` + the call's path), Vue in a constant (`API_URL = ... || "https://api.realworld.show/api"`).
+The tool detects it (`/api`) and applies it; the report prints a `NOTE` saying where it came from, and `--base-url web=none`
+turns it off. The Vue app calls everything through `ApiService.get('articles', slug)`; the tool detects that wrapper
+(its methods take a resource as the first parameter) and prints a `NOTE`; `--wrapper none` turns it off.
 
-Angular frontend (18 calls) against each backend:
+Frontend (18 calls each) against each backend: **every pair matches 18 of 18, all exact.**
 
-| Backend | Routes found | Calls matched | Notes |
-|---|---|---|---|
-| Django | 16 entries | 18 of 18, all exact | `url()` patterns, nested `include()`, DRF router (methods from mixins and `def` actions, `lookup_field`) |
-| Rails | 22 | 18 of 18, all exact | `scope :api`, `resources ... param: :slug, except: [...]`, nested resources, `get :feed, on: :collection`, `devise_for` (approximated) |
-| Laravel | 22 | 18 of 18, all exact | `/api` prefix from `RouteServiceProvider`, `Route::group`, `Route::match`, `Route::resource` options and nesting |
-| Spring Boot | 19 | 18 of 18, all exact with `--base-url web=none` | the Spring app serves `/articles` without `/api`; by default the report says so instead of showing 0 matches: `HINT without the base URL (web=/api) 15 of 18 calls would match ...` |
-| Express | 20 | 18 of 18 but all `likely` | controllers are composed through several levels of `router.use(...)`, so their prefix is unknown (Phase 7.6) |
+| Backend | Routes found | How |
+|---|---|---|
+| Django | 16 entries | `url()` patterns, nested `include()`, DRF router (methods from mixins and `def` actions, `lookup_field`) |
+| Rails | 22 | `scope :api`, `resources ... param: :slug, except: [...]`, nested resources, `get :feed, on: :collection`, `devise_for` (approximated) |
+| Laravel | 22 | `/api` prefix from `RouteServiceProvider`, `Route::group`, `Route::match`, `Route::resource` options and nesting |
+| Express | 20 | three levels of `router.use(...)`: controllers -> `Router().use(...)` chain -> `Router().use('/api', api)` default export -> `app.use(routes)` |
+| Spring Boot | 19 | needs `--base-url web=none`: the Spring app serves `/articles` without `/api`. By default the report says so instead of showing 0 matches: `HINT without the base URL (web=/api) 18 of 18 calls would match ...` |
 
-Frontends: the Angular app works well. The Vue app routes every call through an `ApiService.get('articles', slug)` wrapper
-that takes a resource name, which is not recognised yet. The FastAPI template's React client is generated
-(`client.gen.ts`, `url:` object properties) and its backend uses `include_router(prefix=...)`; neither is resolved yet.
+FastAPI full-stack template (React + FastAPI in one repo): 23 routes, all under `/api/v1` (`app.include_router(api_router, prefix=settings.API_V1_STR)`
+resolved through three files and a constant in `config.py`); the generated TypeScript client's 23 calls are found and all match.
 
 ## Gateway demo (in this repo)
 
@@ -62,14 +63,13 @@ because the frontend URL and the backend route differ by the gateway prefix. Wit
 `/shipping-svc/...` call is reported as having no backend (there is no shipping service in the demo).
 Write `--gateway-prefix` values without a leading slash: Git Bash rewrites `/x` into a Windows path.
 
-## Known gaps these repos exposed (still open)
+## Known gaps (still open)
 
-1. FastAPI: prefixes from `include_router(router, prefix=...)`; generated TypeScript clients that pass `{ url: '...' }` (Phase 7.5).
-2. Express: routers composed through several levels of `router.use(...)` (Phase 7.6).
-3. Frontend wrapper services that take a resource name (`ApiService.get('articles', slug)`) (Phase 7.6).
-4. GraphQL (one endpoint, operation names) and gRPC (`.proto` services) (Phase 7.7).
-5. Django function views and `@api_view` decorators are matched by path only (method `ANY`); Rails `concerns`, `draw(...)` of other files and conditionals are not followed.
+1. GraphQL (one endpoint, operation names) and gRPC (`.proto` services) (Phase 7.7).
+2. Django function views and `@api_view` decorators are matched by path only (method `ANY`); Rails `concerns`, `draw(...)` of other files and conditionals are not followed.
+3. Wrappers are recognised when their methods take the resource/url as first parameter (`get(resource, slug)`); wrappers with other shapes need `--wrapper NAME`.
+4. Express routers registered through loops, factories or `app.use(path, require(...)())` are not followed.
 
-Fixed since the first version of this guide: Django, Rails and Laravel route parsing, base URLs added by interceptors / axios `baseURL`,
-calls split over several lines (`this.http` newline `.post<T>(...)`), `'/a/' + x + '/b'` URLs, and Spring method-level
-`@RequestMapping(path = ..., method = POST)`.
+Fixed since the first version of this guide: Django, Rails, Laravel, FastAPI, Express route parsing; base URLs added by interceptors,
+axios `baseURL` and `API_URL` constants; HTTP wrapper services; generated TypeScript clients; calls split over several lines
+(`this.http` newline `.post<T>(...)`); `'/a/' + x + '/b'` URLs; Spring method-level `@RequestMapping(path = ..., method = POST)`.

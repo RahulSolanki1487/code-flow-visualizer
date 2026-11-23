@@ -208,7 +208,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     frontends, backends = match_api.parse_repo_args(args.frontend), match_api.parse_repo_args(args.backend)
     data = json.loads(Path(args.flow_json).read_text(encoding="utf-8"))
-    result = match_api.run(frontends, backends, match_api.build_rules(args, backends), match_api.build_bases(args))
+    result = match_api.run(frontends, backends, match_api.build_rules(args, backends), match_api.build_bases(args),
+                           match_api.build_wrappers(args))
     stitched, report = stitch(data, result, [n for n, _ in frontends], [n for n, _ in backends], args.tolerance)
     Path(args.output).write_text(json.dumps(stitched, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(format_report(report))

@@ -65,6 +65,7 @@
 | `inferred` | no | default `false` |
 | `note` | no | why inferred / caveats |
 | `link_to` | no | id of another flow this node expands into |
+| `callers` | no | written by `stitch_flows.py` on a backend entry node: `[{"flow", "node", "label"}]`; the page shows "Called from" buttons |
 | `repo` | multi-repo only | name of the repo the `file` belongs to (`web`, `api`, ...). Required on every node when several `--repo NAME=PATH` roots are given; ignored with a single unnamed `--repo` |
 
 ### Edge

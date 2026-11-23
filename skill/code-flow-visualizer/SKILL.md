@@ -55,6 +55,17 @@ route (third-party APIs, static files, URLs built at runtime) and routes nobody 
 Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
 `validate_flow.py flow.json --repo web=<web_repo> --repo api=<api_repo>` (same flags for `render_page.py`).
 
+Then let the tool connect the two sides instead of drawing the join by hand. Trace the frontend flow
+(cite the line of the HTTP call) and one backend flow per route it reaches (entry node = the handler,
+at the route's file:line), keep them as separate flows in one `flow.json`, and run:
+```bash
+python scripts/stitch_flows.py flow.json --frontend web=<web_repo> --backend api=<api_repo> -o flow.json
+```
+It sets `link_to` on the call-site node ("Open sub-flow") and `callers` on the backend entry node
+("Called from"), marks a `likely` match as inferred, and reports calls whose route has no flow yet
+(trace those next), calls with no route, ambiguous matches and backend flows nobody calls.
+Do not hand-write cross-repo `link_to`s for calls the report says have no route.
+
 ### 3. Trace
 Follow calls from the entry point:
 - Default **max depth 5**. Stop at framework/library boundaries (don't trace into node_modules, site-packages, JDK).
@@ -115,6 +126,7 @@ steps, and anything inferred or risky (from `notes`).
 - `scripts/find_api_calls.py` – HTTP calls a frontend makes (fetch, axios, HttpClient, Dart)
 - `scripts/route_table.py` – a backend's routes with full paths (class/group prefixes resolved)
 - `scripts/match_api.py` – match frontend calls to backend routes across repos
+- `scripts/stitch_flows.py` – link frontend flows to backend flows (`link_to` / `callers`) from that match
 - `scripts/validate_flow.py` – schema + file:line checks
 - `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows
 - `scripts/render_page.py` – JSON → Mermaid → HTML

@@ -114,7 +114,7 @@ docs/PLAN.md                    ← this file
 - [x] `route_table.py`: backend routes with full paths (Spring, ASP.NET controllers + MapGroup, Express mounts, NestJS, FastAPI/Flask prefixes)
 - [x] `match_api.py`: exact/likely matching, unmatched calls, uncalled routes. Tried on springboot-react (frontend+backend in one repo), dotnet-starter-kit (dashboard + API: 136 of 140 resolvable calls matched, all exact) and sample Angular/Express
 - [x] Multi-repo roots: `--repo NAME=PATH` for validate/render, node `repo` field
-- [ ] Stitcher: replace the frontend's external-API node with a link into the backend flow and back (after reviewing match reports on the next test repos)
+- [x] Stitcher `stitch_flows.py`: `link_to` on the call-site node and `callers` on the backend entry node, likely matches marked inferred, report of calls without a flow/route, ambiguous matches and uncalled backend flows. Tried on Demo.MultiDb (Angular + .NET) and the sample apps; `examples/cross-repo/`
 - [ ] Try more stacks (user will provide frontend/backend repos): Vue/Next.js server calls, Django/Rails/Laravel prefixes, GraphQL/gRPC
 
 ## Ideas for later

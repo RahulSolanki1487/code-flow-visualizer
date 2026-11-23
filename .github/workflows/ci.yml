@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Install diagram checker and page-test libraries
+        run: |
+          npm ci --prefix skill/code-flow-visualizer/scripts/mermaid-check
+          python skill/code-flow-visualizer/scripts/fetch_vendor.py
+
+      - name: Unit and integration tests
+        run: python -m pytest -q
+
+      - name: Example flows pass the eval assertions
+        run: python evals/run_evals.py --golden
+
+      - name: Skill package is valid
+        run: python tools/package_skill.py

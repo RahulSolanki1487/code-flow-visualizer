@@ -156,7 +156,7 @@ python -m pytest -q                      # unit and integration tests
 python evals/run_evals.py --golden       # check the shipped example flows against the eval assertions
 ```
 `evals/RESULTS.md` records how the skill performed on real repos (including what failed and what was changed); see
-`evals/run_evals.py --outputs DIR` to score new runs. There is no CI workflow yet, so run both before a pull request.
+`evals/run_evals.py --outputs DIR` to score new runs. CI (`.github/workflows/ci.yml`) runs both, plus a package check, on every pull request; `main` is protected by the ruleset in `.github/rulesets/protect-main.json`.
 
 ## Status and limits
 

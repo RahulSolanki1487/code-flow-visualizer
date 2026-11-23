@@ -180,7 +180,7 @@ def build_flow(flow, repo_root=None):
     mermaid = DIAGRAMS.get(flow.get("diagram", "flowchart"), flowchart)(flow)
     return {
         "id": flow["id"], "title": flow["title"], "mode": flow.get("mode", "code"),
-        "summary": flow.get("summary", ""), "notes": flow.get("notes", []),
+        "summary": flow.get("summary", ""), "plain_summary": flow.get("plain_summary", ""), "notes": flow.get("notes", []),
         "steps": steps, "mermaid": mermaid,
     }
 

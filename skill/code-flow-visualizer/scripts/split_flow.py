@@ -108,9 +108,13 @@ def _split_once(flow: dict, limit: int, part_no: int) -> tuple[dict, list[dict]]
                 moved = copy.deepcopy(e)
                 moved["to"] = back_stub
                 child_edges.append(moved)
-        child = {k: v for k, v in flow.items() if k not in ("nodes", "edges", "notes", "entry", "id", "title")}
+        child = {k: v for k, v in flow.items() if k not in ("nodes", "edges", "notes", "entry", "id", "title", "plain_summary")}
         child.update(id=child_id, title=title, entry=child_entry, nodes=child_nodes, edges=child_edges,
                      summary=f"Continuation of '{flow['title']}'. {flow.get('summary', '')}".strip())
+        if flow.get("plain_summary"):  # the parent's text describes the whole journey, so the part lists its own steps in order
+            own = [n["label"] for n in child_nodes if not str(n["id"]).startswith(("continues_", "back_to_"))]
+            child["plain_summary"] = ("This page continues the story from the previous page, moved here so the picture stays readable. "
+                                      "The flow goes through these steps: " + ", then ".join(own) + ".")
         children.append(child)
         if into:
             anchor = nodes[into[0]["to"]]

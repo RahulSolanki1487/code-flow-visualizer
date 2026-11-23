@@ -9,7 +9,8 @@
         "validate_flow.py reports 0 errors with --repo",
         "page renders with no Mermaid error",
         "401, 409 and 500 error paths are present",
-        "calls to the payment service are shown as an external node"
+        "calls to the payment service are shown as an external node",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "repo": "examples/sample-express-app",
       "golden": {
@@ -42,6 +43,9 @@
         },
         {
           "check": "has_external"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -56,7 +60,8 @@
       "assertions": [
         "uses find_entry_points.py",
         "each flow under 40 nodes",
-        "every node has file:line except external"
+        "every node has file:line except external",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -72,6 +77,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -86,7 +94,8 @@
       "assertions": [
         "mode is 'user'",
         "nodes are mostly type 'ui' or 'decision'",
-        "edges describe user actions"
+        "edges describe user actions",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -113,6 +122,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -127,7 +139,8 @@
       "assertions": [
         "diagram is 'sequence'",
         "entry node is the job/scheduler",
-        "external systems shown"
+        "external systems shown",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -142,6 +155,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -156,7 +172,8 @@
       "assertions": [
         "at least one inferred edge with a note",
         "repository/JPA layer shown",
-        "no invented class names (all files exist)"
+        "no invented class names (all files exist)",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -173,6 +190,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -191,7 +211,8 @@
       "assertions": [
         "diagram is 'state'",
         "a forbidden transition is shown as an error",
-        "snippets exist in the cited files"
+        "snippets exist in the cited files",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -206,6 +227,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "golden": {
@@ -223,7 +247,8 @@
       "expected_output": "mode=user flow from proxy/middleware auth through App Router pages and client navigation",
       "assertions": [
         "uses app/ pages and proxy/middleware as screens/decisions",
-        "error paths shown"
+        "error paths shown",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "checks": [
         {
@@ -250,6 +275,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "golden": {
@@ -267,7 +295,8 @@
       "expected_output": "mode=user flow: guarded route → login → returnUrl → cart → checkout with failure paths",
       "assertions": [
         "route guard shown as a decision",
-        "login and payment errors shown"
+        "login and payment errors shown",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "repo": "examples/sample-angular-app",
       "golden": {
@@ -307,6 +336,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {
@@ -320,7 +352,8 @@
       "expected_output": "mode=user flow driven by the go_router redirect, with sign-in failure and sign-out paths",
       "assertions": [
         "router redirect shown as a decision",
-        "auth failure shown"
+        "auth failure shown",
+        "every flow has a plain-language summary for non-technical readers"
       ],
       "repo": "examples/sample-flutter-app",
       "golden": {
@@ -361,6 +394,9 @@
         },
         {
           "check": "mermaid_parses"
+        },
+        {
+          "check": "plain_summary"
         }
       ],
       "run": {

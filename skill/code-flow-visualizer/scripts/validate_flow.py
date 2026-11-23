@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+import plain_language
 from repo_roots import normalize_roots, parse_repo_args, root_for
 
 NODE_TYPES = {"entry", "logic", "data", "external", "decision", "error", "ui", "event"}
@@ -66,6 +67,11 @@ def validate(data: dict, repo=None):
         for key in ("id", "title", "mode", "summary", "entry", "nodes", "edges"):
             if key not in f:
                 errors.append(f"{p}: missing '{key}'")
+        plain = plain_language.problems(f.get("plain_summary"), plain_language.step_labels(f))
+        if plain == ["missing"]:
+            warnings.append(f"{p}: no 'plain_summary' (the 'How it works' box for non-technical readers)")
+        elif plain:
+            warnings.append(f"{p}: plain_summary is not plain: {'; '.join(plain)}")
         if f.get("mode") not in ("code", "user"):
             errors.append(f"{p}: mode must be 'code' or 'user'")
         if f.get("diagram", "flowchart") not in DIAGRAMS:

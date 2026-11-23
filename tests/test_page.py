@@ -18,7 +18,8 @@ BOOTSTRAP = ROOT / "skill" / "code-flow-visualizer" / "assets" / "vendor" / "boo
 
 
 def flow(i, marker):
-    return {"id": f"f{i}", "title": f"Flow {i}", "mode": "code", "diagram": "flowchart", "summary": "s", "entry": "a",
+    plain = {"plain_summary": "A shopper starts at FIRST and later reaches B, where the payment is taken."} if i == 1 else {}
+    return {"id": f"f{i}", "title": f"Flow {i}", "mode": "code", "diagram": "flowchart", "summary": "s", "entry": "a", **plain,
             "nodes": [{"id": "a", "label": marker, "type": "entry", "file": "x.py", "line": 1, "description": "d"},
                       {"id": "b", "label": "B", "type": "logic", "file": "x.py", "line": 2, "description": "d"}],
             "edges": [{"from": "a", "to": "b"}]}
@@ -51,3 +52,11 @@ def test_clicking_a_flow_refreshes_the_data(sidebar_result):
 
 def test_a_slow_earlier_render_does_not_overwrite_the_latest_flow(sidebar_result):
     assert sidebar_result["diagramAfterRace"] == "second"
+
+
+def test_plain_words_names_the_diagram_steps_as_links_and_follows_the_selected_flow(sidebar_result):
+    first, second = sidebar_result["plainFirst"], sidebar_result["plainSecond"]
+    assert first["hidden"] is False and first["text"] == "A shopper starts at FIRST and later reaches B, where the payment is taken."
+    assert first["links"] == [["FIRST", "a"], ["B", "b"]]          # each step name is a link to that step
+    assert sidebar_result["refOpensSteps"] is True                  # clicking one opens the step card
+    assert second["hidden"] is True and second["text"] == "" and second["links"] == []   # flow 2 has none: nothing stale stays

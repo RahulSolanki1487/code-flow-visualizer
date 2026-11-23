@@ -35,16 +35,28 @@ await sleep(100);
 const out = {};
 const items = document.querySelectorAll("#cfv-flow-list .list-group-item");
 out.flowCount = items.length;
+const plainBox = () => ({
+  text: document.getElementById("cfv-plain-text").textContent,
+  hidden: document.getElementById("cfv-plain").classList.contains("d-none"),
+  links: [...document.querySelectorAll("#cfv-plain-text a.cfv-ref")].map((a) => [a.textContent, a.dataset.step]),
+});
+out.plainFirst = plainBox();            // flow 1 has a plain summary
 
 // 1. go to the Steps tab, then click the second flow in the sidebar
 document.getElementById("cfv-steps-tab").click();
 await sleep(50);
 out.stepsActiveBefore = active("#tab-steps");
+items[0].click();
+await sleep(100);
+document.querySelector("#cfv-plain-text a.cfv-ref").click();     // a step name in the description opens its step card
+await sleep(100);
+out.refOpensSteps = active("#tab-steps") && document.querySelector("#step-a").classList.contains("cfv-active");
 items[1].click();
 await sleep(150);
 out.diagramActiveAfter = active("#tab-diagram");
 out.stepsActiveAfter = active("#tab-steps");
 out.title = document.getElementById("cfv-title").textContent;
+out.plainSecond = plainBox();           // flow 2 has none: the box must hide, not keep flow 1's text
 out.diagramSource = document.querySelector("#cfv-diagram svg")?.getAttribute("data-src") ?? null;
 
 // 2. click flow 0 then flow 1 quickly: the slow first render must not overwrite the second

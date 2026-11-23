@@ -9,6 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "A minimal-API endpoint sends CreateProductCommand through Mediator. Permission and idempotency run as endpoint metadata/filters, FluentValidation runs as a pipeline behavior, and the handler checks brand, category, SKU and slug before saving. SaveChanges triggers an audit interceptor and then publishes ProductCreatedDomainEvent.",
+      "plain_summary": "A user adds a product by sending POST /products. The Permission check confirms they are allowed, and the Idempotency filter makes sure a repeated request is not processed twice. mediator.Send passes the request on; ValidationBehavior uses CreateProductCommandValidator to check the details are complete, then CreateProductCommandHandler takes over. It asks Brand exists? and Category exists?, builds the product with Product.Create, and checks SKU taken? and Slug taken? so that no duplicate is created. SaveChangesAsync stores the product, the Auditable interceptor records who changed it, DomainEventsInterceptor announces the new product and CatalogEventHandlers reacts to that announcement. The user then receives 200 OK + product id. If any check fails along the way, GlobalExceptionHandler turns the problem into a clear error message for the user.",
       "entry": "endpoint",
       "nodes": [
         {

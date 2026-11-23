@@ -95,6 +95,17 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 - Node ids: short, `snake_case`, unique.
 - Node `type` ∈ `entry, logic, data, external, decision, error, ui, event`.
 - Keep labels short (≤ 40 chars); put detail in `description`.
+- **Write `plain_summary` for every flow**: the "How it works" box at the top of the page, for a non-technical reader such as a manager.
+  Tell the story of the flow in simple sentences, from the first step to the last, **naming every step of the diagram exactly as the
+  diagram labels it** (`auth middleware`, `POST /products`, `All items available?`) so the reader can match each sentence to a box.
+  Include the branches and failures (what happens when a check says no) and what the person finally sees.
+  Everything around the step names is plain language: no file paths, code syntax or other identifiers, no jargon. The page turns each
+  step name into a link to that step. Do not change the diagram labels to make the text easier.
+  Bad (general): "The system validates the request and saves the order, returning an error on failure."
+  Good (names the steps): "A customer places an order by sending POST /api/orders. First the auth middleware checks they are signed in;
+  if not, the order stops with 401 Unauthorized. Otherwise ... All items available? If not, the customer gets 409 Out of stock ..."
+  The validator warns when it is missing, leaves a step out (it names the missing ones) or contains other code
+  (`scripts/plain_language.py` is the rule). Long flows may have a longer text (about 70 characters per step). Keep `summary` for the technical version.
 - More than ~40 nodes → prefer scoping the flow down. If it must stay large, run `python scripts/split_flow.py flow.json -o flow.json` (splits flowchart/state flows into linked sub-flows; sequence flows are not split) or split by hand with `"link_to": "<flow_id>"`.
 
 ### 5. Validate
@@ -142,7 +153,7 @@ steps, and anything inferred or risky (from `notes`).
 - `scripts/match_api.py` – match frontend calls to backend routes across repos
 - `scripts/gateway_rules.py` – gateway rewrite rules (nginx.conf, Ocelot JSON, explicit prefixes)
 - `scripts/stitch_flows.py` – link frontend flows to backend flows (`link_to` / `callers`) from that match
-- `scripts/validate_flow.py` – schema + file:line checks
+- `scripts/validate_flow.py` – schema + file:line + snippet checks, and the plain-summary rule (`scripts/plain_language.py`)
 - `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows
 - `scripts/render_page.py` – JSON → Mermaid → HTML
 - `scripts/check_mermaid.py` – optional Mermaid syntax check (Node)

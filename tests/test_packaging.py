@@ -85,6 +85,8 @@ def test_plugin_rejects_invalid_or_duplicate_skill(tmp_path):
 
 def test_install_targets_and_copy(tmp_path):
     assert install_skill.target_dir(True, None, home=tmp_path) == tmp_path / ".claude" / "skills" / "code-flow-visualizer"
+    assert install_skill.target_dir(True, None, home=tmp_path, target="copilot") == tmp_path / ".copilot" / "skills" / "code-flow-visualizer"
+    assert install_skill.target_dir(False, tmp_path / "proj", target="copilot") == tmp_path / "proj" / ".github" / "skills" / "code-flow-visualizer"
     assert install_skill.target_dir(False, tmp_path / "proj") == tmp_path / "proj" / ".claude" / "skills" / "code-flow-visualizer"
     target = tmp_path / "t" / "code-flow-visualizer"
     target.mkdir(parents=True)

@@ -56,8 +56,12 @@ a Spring Boot service, sample Angular and Flutter apps, and a frontend-to-backen
 | Claude app (web/desktop) | `python tools/package_skill.py` → upload `dist/code-flow-visualizer.zip` under Settings → Capabilities → Skills |
 | Claude Code (personal) | `python tools/install_skill.py --personal` (copies to `~/.claude/skills/`) |
 | Claude Code (project) | `python tools/install_skill.py --project <your-project>` |
+| GitHub Copilot (personal) | `python tools/install_skill.py --target copilot --personal` (copies to `~/.copilot/skills/`) |
+| GitHub Copilot (project) | `python tools/install_skill.py --target copilot --project <your-project>` (copies to `<your-project>/.github/skills/`) |
 | Claude Code plugin (teams) | `python tools/build_plugin.py --zip` → `dist/plugin/`; try it with `claude --plugin-dir dist/plugin/code-flow-visualizer`. Bundle other team skills with `--extra-skills DIR [DIR ...]` |
 | No internet at the client | `python tools/package_skill.py --offline --fetch` → `dist/code-flow-visualizer-offline.zip` (Bootstrap, Mermaid and svg-pan-zoom included). Add `--offline` to `install_skill.py` / `build_plugin.py` too |
+
+**GitHub Copilot:** the skill uses the open Agent Skills format (a folder with `SKILL.md`), which Copilot reads in agent mode in VS Code, Visual Studio and JetBrains, in the Copilot CLI and in the cloud agent. Copilot also reads `.claude/skills/`, so a project that already has the skill there needs nothing more. Support depends on your IDE version; in VS Code you may need to enable agent skills in settings. Ask Copilot for a code flow (for example "trace POST /orders and show me the flow page") and it loads the skill when it matches. The scripts need only Python 3.10+ (and Node for the optional diagram check). The trigger tuning and evals were run with Claude, so Copilot results may differ.
 
 Every packaging command validates `SKILL.md` first (name, description length, YAML, referenced files). The version is in `VERSION`.
 

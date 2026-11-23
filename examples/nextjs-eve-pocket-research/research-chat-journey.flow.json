@@ -9,6 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "Every request first passes HTTP Basic auth in proxy.ts. The home page lists research items and shows an empty chat. Sending the first message creates a session and silently rewrites the URL to /s/<id>, which can later be reopened to resume the conversation. 'New research' returns to /.",
+      "plain_summary": "Everyone who opens the app must first enter a shared username and password. After that they see a chat screen and a list of past research. When they ask a question, a new conversation is created and the page address changes so it can be bookmarked or reopened later. They can stop an answer in progress, ask follow-up questions, or start a fresh research topic. If something fails, an error message is shown.",
       "entry": "visit",
       "nodes": [
         { "id": "visit", "label": "Open the app", "type": "ui", "file": "src/eve-pocket-research/proxy.ts", "line": 6,

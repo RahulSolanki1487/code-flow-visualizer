@@ -9,6 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "/cart and /checkout are protected by authGuard. Anonymous visitors are sent to /login with a returnUrl, sign in, and are returned to where they were headed. Checkout posts the order and goes back to the cart.",
+      "plain_summary": "A shopper opens the cart or the checkout page. If they are not signed in, they are sent to a sign-in page first and, once signed in, taken back to where they were heading. A wrong email or password shows an error and they can try again. From the cart they go to checkout and pay; if the payment fails they see a message and can try again.",
       "entry": "visit_cart",
       "nodes": [
         { "id": "visit_cart", "label": "Open /cart", "type": "ui", "file": "src/app/app.routes.ts", "line": 9,

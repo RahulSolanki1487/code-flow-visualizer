@@ -15,6 +15,7 @@ Ask Claude things like:
 
 ## What you get
 
+- **"In plain words" box** at the top of every page: a short, jargon-free description of the whole flow that a manager can read, written by Claude and checked by the validator (no code names, paths or URLs).
 - **Interactive diagram** (Mermaid, zoom and pan, dark mode). Click a node to jump to its step.
 - **Step-by-step walkthrough**: what happens, why it matters, the real code snippet and its `file:line`, with an "Open in VS Code" link.
 - **Error paths as first-class steps**, and a clear marker for hops that are *inferred* (dependency injection, event buses, proxies) with the reason.

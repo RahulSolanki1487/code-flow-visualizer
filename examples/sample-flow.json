@@ -9,6 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "Authenticates the caller, reserves stock, charges the card through the payment service and saves the order. Out-of-stock returns 409; other failures return 500.",
+      "plain_summary": "A customer places an order in the shop. The system first checks that the customer is signed in, then makes sure every item is in stock and sets it aside. It then charges the customer's card with the payment service and, once that works, saves and confirms the order. If the customer is not signed in, an item is out of stock, or something goes wrong along the way, the order is stopped and the customer is told why.",
       "entry": "route",
       "nodes": [
         { "id": "route", "label": "POST /api/orders", "type": "entry", "file": "src/routes/orders.js", "line": 5,
@@ -70,6 +71,7 @@
       "mode": "code",
       "diagram": "sequence",
       "summary": "The same request as a sequence diagram (happy path plus the out-of-stock branch).",
+      "plain_summary": "The same order being placed, drawn as a conversation between the parts of the system in the order they talk to each other: the shop receives the request, checks stock, takes the payment and saves the order. It also shows what happens when an item is out of stock.",
       "entry": "client",
       "participants": ["client", "ctrl", "svc", "inv", "pay", "orders"],
       "nodes": [

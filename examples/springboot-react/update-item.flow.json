@@ -9,6 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "The controller maps the request and calls ItemService inside a class-level transaction. The service rejects blank name/colour, loads the item through the Spring Data repository, updates and saves it. The controller turns each exception into a status code: 400, 404 or 500, otherwise 204.",
+      "plain_summary": "A user edits the name and colour of an existing item. The system first checks that both fields are filled in, then looks the item up and, if it exists, saves the changes. If the details are incomplete the user is told the request is invalid, if the item cannot be found they are told it does not exist, and any unexpected failure is reported as a server error. On success the system simply confirms that the update was done.",
       "entry": "controller",
       "nodes": [
         {

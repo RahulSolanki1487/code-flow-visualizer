@@ -95,6 +95,13 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 - Node ids: short, `snake_case`, unique.
 - Node `type` ∈ `entry, logic, data, external, decision, error, ui, event`.
 - Keep labels short (≤ 40 chars); put detail in `description`.
+- **Write `plain_summary` for every flow**: the "In plain words" box at the top of the page, for a non-technical reader such as a manager.
+  2-5 sentences, 60-700 characters, everyday words: who does what, what the normal outcome is, what can go wrong and what the person
+  then sees. No file, class, function, URL or HTTP-verb names, no code, no jargon ("middleware", "endpoint", "payload").
+  Bad: "The controller calls OrderService.placeOrder, which reserves stock via inventoryRepo and returns 201."
+  Good: "A customer places an order. The system checks they are signed in, makes sure every item is in stock, charges their card and
+  confirms the order. If anything fails, the order is stopped and the customer is told why."
+  The validator warns when it is missing or reads technical (`scripts/plain_language.py` is the rule). Keep `summary` for the technical version.
 - More than ~40 nodes → prefer scoping the flow down. If it must stay large, run `python scripts/split_flow.py flow.json -o flow.json` (splits flowchart/state flows into linked sub-flows; sequence flows are not split) or split by hand with `"link_to": "<flow_id>"`.
 
 ### 5. Validate
@@ -142,7 +149,7 @@ steps, and anything inferred or risky (from `notes`).
 - `scripts/match_api.py` – match frontend calls to backend routes across repos
 - `scripts/gateway_rules.py` – gateway rewrite rules (nginx.conf, Ocelot JSON, explicit prefixes)
 - `scripts/stitch_flows.py` – link frontend flows to backend flows (`link_to` / `callers`) from that match
-- `scripts/validate_flow.py` – schema + file:line checks
+- `scripts/validate_flow.py` – schema + file:line + snippet checks, and the plain-summary rule (`scripts/plain_language.py`)
 - `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows
 - `scripts/render_page.py` – JSON → Mermaid → HTML
 - `scripts/check_mermaid.py` – optional Mermaid syntax check (Node)

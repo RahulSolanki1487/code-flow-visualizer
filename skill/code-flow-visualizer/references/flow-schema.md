@@ -45,7 +45,8 @@
 | `mode` | yes | `code` or `user` |
 | `diagram` | no | `flowchart` (default), `sequence` or `state` |
 | `direction` | no | flowchart only: `TD` (default) or `LR` |
-| `summary` | yes | 1–3 sentences |
+| `summary` | yes | 1–3 sentences, technical |
+| `plain_summary` | recommended | 2–5 sentences for a non-technical reader (management): no code, file, URL or class names. Shown as the "In plain words" box at the top of the page; the validator warns when it is missing or reads technical (60–700 characters) |
 | `entry` | yes | node id of the starting node |
 | `nodes` | yes | list |
 | `edges` | yes | list |

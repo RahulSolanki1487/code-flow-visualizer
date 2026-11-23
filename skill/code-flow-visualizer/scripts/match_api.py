@@ -20,6 +20,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import find_api_calls
+import gateway_rules
 import route_table
 
 PARAM_RE = re.compile(r"\{[^}]*\}|:\w+|<[^>]*>|\[[^\]]*\]")
@@ -58,44 +59,53 @@ def compare(call_segs: list[str], route_segs: list[str]):
     return kind, sum(1 for a, b in pairs if a == b)
 
 
-def match_call(call: dict, route: route_table.Route):
-    """Return (confidence, score) or None.
+def match_call(call: dict, route: route_table.Route, rules=()):
+    """Return (confidence, score, via) or None. `via` names the gateway rule that rewrote the URL, if any.
 
     equal length            -> exact (likely when only the optional path suffix made it fit)
-    call has extra leading  -> only if the route's prefix is unknown (gateway/context path): likely
+    call has extra leading  -> only if the route's prefix is unknown (context path): likely
     route has extra leading -> only if the call starts from a variable base URL: likely
+    gateway rule for the route's backend rewrites the call's prefix -> compared as equal: exact
     """
     if route.method is not None and route.method not in call["methods"]:
         return None
     if call.get("unresolved") or call.get("url") is None:
         return None
     base = segments(call["url"])
-    variants = [(base, False)]
+    variants = [(base, False, "")]
     if call.get("optional_suffix"):
-        variants.append((base + ["{}"], True))
+        variants.append((base + ["{}"], True, ""))
+    for rule in rules:
+        if rule.backend and rule.backend == route.repo:
+            for call_segs, via_suffix, _ in list(variants):
+                rewritten = gateway_rules.apply_rule(rule, call_segs)
+                if rewritten is not None:
+                    variants.append((rewritten, via_suffix, f"gateway {rule.source}: /{'/'.join(rule.upstream)}"))
     route_segs = segments(route.path)
     best = None
-    for call_segs, via_suffix in variants:
+    for call_segs, via_suffix, via in variants:
         result = compare(call_segs, route_segs)
         if not result:
             continue
         kind, score = result
+        if via and kind != "equal":
+            continue  # a gateway rule must explain the whole difference
         if kind == "call_longer" and route.prefix_known:
             continue
         if kind == "call_shorter" and not call.get("base_unknown"):
             continue
         confidence = "exact" if kind == "equal" and not via_suffix else "likely"
-        candidate = (confidence, score)
+        candidate = (confidence, score, via)
         if best is None or (confidence == "exact", score) > (best[0] == "exact", best[1]):
             best = candidate
     return best
 
 
-def match(calls: list[dict], routes: list[route_table.Route]) -> dict:
+def match(calls: list[dict], routes: list[route_table.Route], rules=()) -> dict:
     matches, unmatched = [], []
     called = set()
     for call in calls:
-        scored = [(hit, idx) for idx, route in enumerate(routes) if (hit := match_call(call, route))]
+        scored = [(hit, idx) for idx, route in enumerate(routes) if (hit := match_call(call, route, rules))]
         if not scored:
             unmatched.append(call)
             continue
@@ -109,7 +119,10 @@ def match(calls: list[dict], routes: list[route_table.Route]) -> dict:
         for hit, idx in scored:
             if idx in chosen:
                 called.add(idx)
-                matches.append({"call": call, "route": asdict(routes[idx]), "confidence": hit[0]})
+                entry = {"call": call, "route": asdict(routes[idx]), "confidence": hit[0]}
+                if hit[2]:
+                    entry["via"] = hit[2]
+                matches.append(entry)
     uncalled = [asdict(r) for i, r in enumerate(routes) if i not in called]
     return {"matches": matches, "unmatched_calls": unmatched, "uncalled_routes": uncalled}
 
@@ -125,7 +138,7 @@ def parse_repo_args(values: list[str]) -> list[tuple[str, Path]]:
     return out
 
 
-def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]]) -> dict:
+def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rules=()) -> dict:
     calls = []
     for name, path in frontends:
         for c in find_api_calls.scan(path):
@@ -133,15 +146,24 @@ def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]]) -> 
     routes = []
     for name, path in backends:
         for r in route_table.collect_routes(path):
-            routes.append((name, r))
-    result = match(calls, [r for _, r in routes])
-    names = {(r.file, r.line, r.method, r.path): n for n, r in routes}
-    for m in result["matches"]:
-        r = m["route"]
-        r["repo"] = names.get((r["file"], r["line"], r["method"], r["path"]), "")
-    for r in result["uncalled_routes"]:
-        r["repo"] = names.get((r["file"], r["line"], r["method"], r["path"]), "")
-    return result
+            r.repo = name
+            routes.append(r)
+    return match(calls, routes, rules)
+
+
+def add_gateway_arguments(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--gateway-prefix", action="append", metavar="BACKEND=prefix",
+                    help="calls to BACKEND carry this prefix, which a gateway strips (repeatable). "
+                         "Write it without a leading slash (orders=orders-svc): Git Bash turns /x into a Windows path")
+    ap.add_argument("--gateway-config", action="append", metavar="PATH",
+                    help="nginx.conf or Ocelot JSON; its rewrite rules are applied (upstream host -> backend by name/folder)")
+
+
+def build_rules(args, backends: list[tuple[str, Path]]) -> list:
+    rules = gateway_rules.explicit_rules(args.gateway_prefix)
+    for path in args.gateway_config or []:
+        rules.extend(gateway_rules.resolve_hosts(gateway_rules.load_config(Path(path)), backends))
+    return rules
 
 
 def format_report(result: dict, with_repo: bool) -> str:
@@ -156,7 +178,8 @@ def format_report(result: dict, with_repo: bool) -> str:
         lines.append(f"  {methods:<12} {url:<44} {tag}{file}:{line}")
         for m in ms:
             r = m["route"]
-            lines.append(f"      -> [{m['confidence']}] {r['method'] or 'ANY'} {r['path']}   {r.get('repo', '') + ':' if with_repo else ''}{r['file']}:{r['line']}")
+            via = f"  ({m['via']})" if m.get("via") else ""
+            lines.append(f"      -> [{m['confidence']}] {r['method'] or 'ANY'} {r['path']}   {r.get('repo', '') + ':' if with_repo else ''}{r['file']}:{r['line']}{via}")
     lines.append(f"\nCALLS WITH NO BACKEND ROUTE ({len(result['unmatched_calls'])})")
     for c in result["unmatched_calls"]:
         why = "unresolved URL" if c.get("unresolved") else ("not an internal path" if "://" in (c["url"] or "") else "no route")
@@ -174,9 +197,10 @@ def main(argv=None) -> int:
     ap.add_argument("--frontend", action="append", required=True, help="[NAME=]PATH, repeatable")
     ap.add_argument("--backend", action="append", required=True, help="[NAME=]PATH, repeatable")
     ap.add_argument("--json", action="store_true")
+    add_gateway_arguments(ap)
     args = ap.parse_args(argv)
     frontends, backends = parse_repo_args(args.frontend), parse_repo_args(args.backend)
-    result = run(frontends, backends)
+    result = run(frontends, backends, build_rules(args, backends))
     if args.json:
         print(json.dumps(result, indent=2))
     else:

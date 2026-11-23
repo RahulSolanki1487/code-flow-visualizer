@@ -55,6 +55,11 @@ route (third-party APIs, static files, URLs built at runtime) and routes nobody 
 Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
 `validate_flow.py flow.json --repo web=<web_repo> --repo api=<api_repo>` (same flags for `render_page.py`).
 
+If a gateway or reverse proxy sits between them (the frontend calls `/orders-svc/api/v1/orders`, the service
+serves `/api/v1/orders`), tell the matcher how URLs are rewritten, or those calls stay unmatched:
+`--gateway-config nginx.conf` (or an Ocelot JSON file; upstream hosts are mapped to backends by name or folder
+name) or `--gateway-prefix orders=orders-svc` (no leading slash). Same flags on `stitch_flows.py`.
+
 Then let the tool connect the two sides instead of drawing the join by hand. Trace the frontend flow
 (cite the line of the HTTP call) and one backend flow per route it reaches (entry node = the handler,
 at the route's file:line), keep them as separate flows in one `flow.json`, and run:
@@ -126,6 +131,7 @@ steps, and anything inferred or risky (from `notes`).
 - `scripts/find_api_calls.py` – HTTP calls a frontend makes (fetch, axios, HttpClient, Dart)
 - `scripts/route_table.py` – a backend's routes with full paths (class/group prefixes resolved)
 - `scripts/match_api.py` – match frontend calls to backend routes across repos
+- `scripts/gateway_rules.py` – gateway rewrite rules (nginx.conf, Ocelot JSON, explicit prefixes)
 - `scripts/stitch_flows.py` – link frontend flows to backend flows (`link_to` / `callers`) from that match
 - `scripts/validate_flow.py` – schema + file:line checks
 - `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows

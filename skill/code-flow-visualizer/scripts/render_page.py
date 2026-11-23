@@ -10,6 +10,8 @@ import sys
 from collections import deque
 from pathlib import Path
 
+from repo_roots import normalize_roots, parse_repo_args, root_for
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE = SKILL_DIR / "templates" / "flow-page.html"
 VENDOR = SKILL_DIR / "assets" / "vendor"
@@ -157,7 +159,9 @@ def vscode_url(repo_root: Path | None, file_: str | None, line) -> str:
     return f"vscode://file/{absolute}" + (f":{line}" if line else "")
 
 
-def build_flow(flow, repo_root: Path | None = None):
+def build_flow(flow, repo_root=None):
+    """`repo_root` may be None, one Path, or {name: Path} (nodes then carry a `repo` field)."""
+    roots = normalize_roots(repo_root)
     nodes = {n["id"]: n for n in flow["nodes"]}
     order = order_nodes(flow)
     outgoing = {}
@@ -169,7 +173,8 @@ def build_flow(flow, repo_root: Path | None = None):
     steps = []
     for nid in order:
         n = dict(nodes[nid])
-        n["vscode"] = vscode_url(repo_root, n.get("file"), n.get("line"))
+        node_root, _problem = root_for(roots, n)
+        n["vscode"] = vscode_url(node_root, n.get("file"), n.get("line"))
         n["outgoing"] = outgoing.get(nid, [])
         steps.append(n)
     mermaid = DIAGRAMS.get(flow.get("diagram", "flowchart"), flowchart)(flow)
@@ -194,7 +199,7 @@ def asset_tag(key: str, offline: bool) -> str:
     return f'<link rel="stylesheet" href="{url}">' if is_css else f'<script src="{url}"></script>'
 
 
-def render(data: dict, offline: bool = False, repo_root: Path | None = None) -> str:
+def render(data: dict, offline: bool = False, repo_root=None) -> str:
     page = {
         "project": data.get("project", "Project"),
         "generated_at": data.get("generated_at", ""),
@@ -222,10 +227,11 @@ def main():
     ap.add_argument("flow_json")
     ap.add_argument("-o", "--output", default="flow.html")
     ap.add_argument("--offline", action="store_true", help="inline vendor libraries from assets/vendor/")
-    ap.add_argument("--repo", help="repo root; adds 'Open in VS Code' links to each step")
+    ap.add_argument("--repo", action="append",
+                    help="repo root; adds 'Open in VS Code' links to each step. Repeat as NAME=PATH for several repos")
     args = ap.parse_args()
     data = json.loads(Path(args.flow_json).read_text(encoding="utf-8"))
-    Path(args.output).write_text(render(data, args.offline, Path(args.repo).resolve() if args.repo else None), encoding="utf-8")
+    Path(args.output).write_text(render(data, args.offline, {k: v.resolve() for k, v in parse_repo_args(args.repo).items()}), encoding="utf-8")
     print(f"wrote {args.output} ({len(data['flows'])} flow(s))")
 
 

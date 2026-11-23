@@ -3,6 +3,7 @@
 
 Usage:
     python validate_flow.py flow.json [--repo PATH]
+    python validate_flow.py flow.json --repo web=../web-app --repo api=../api   (nodes carry "repo": "web"|"api")
 
 Exit code 0 = no errors (warnings allowed), 1 = errors found.
 """
@@ -10,6 +11,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
+from repo_roots import normalize_roots, parse_repo_args, root_for
 
 NODE_TYPES = {"entry", "logic", "data", "external", "decision", "error", "ui", "event"}
 EDGE_KINDS = {"normal", "error", "async"}
@@ -45,7 +48,9 @@ def check_snippet(file_lines: list[str], snippet: str, line: int) -> str | None:
     return None
 
 
-def validate(data: dict, repo: Path | None):
+def validate(data: dict, repo=None):
+    """`repo` may be None, one Path, or {name: Path} for flows that span several repos (node field `repo`)."""
+    roots = normalize_roots(repo)
     errors, warnings = [], []
     flows = data.get("flows")
     if not isinstance(flows, list) or not flows:
@@ -53,7 +58,7 @@ def validate(data: dict, repo: Path | None):
     flow_ids = [f.get("id") for f in flows]
     if len(set(flow_ids)) != len(flow_ids):
         errors.append("duplicate flow ids")
-    line_cache: dict[str, list[str]] = {}
+    line_cache: dict[tuple, list[str]] = {}
 
     for f in flows:
         fid = f.get("id", "?")
@@ -93,28 +98,33 @@ def validate(data: dict, repo: Path | None):
                 if n.get("type") != "external":
                     errors.append(f"{np_}: missing 'file' (only external nodes may omit it)")
                 continue
-            if repo is None:
+            if not roots:
                 continue
-            path = (repo / file_).resolve()
+            repo_root, repo_problem = root_for(roots, n)
+            if repo_problem:
+                errors.append(f"{np_}: {repo_problem}")
+                continue
+            path = (repo_root / file_).resolve()
             try:
-                path.relative_to(repo.resolve())
+                path.relative_to(repo_root.resolve())
             except ValueError:
                 errors.append(f"{np_}: file '{file_}' is outside the repo")
                 continue
             if not path.is_file():
-                errors.append(f"{np_}: file not found: {file_}")
+                errors.append(f"{np_}: file not found: {file_}" + (f" (repo '{n['repo']}')" if n.get("repo") else ""))
                 continue
             if line is None:
                 warnings.append(f"{np_}: no line number")
                 continue
-            if file_ not in line_cache:
-                line_cache[file_] = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-            total = len(line_cache[file_])
+            cache_key = (str(repo_root.resolve()), file_)
+            if cache_key not in line_cache:
+                line_cache[cache_key] = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+            total = len(line_cache[cache_key])
             if not isinstance(line, int) or line < 1 or line > total:
                 errors.append(f"{np_}: line {line} out of range (file has {total} lines)")
                 continue
             if n.get("snippet"):
-                problem = check_snippet(line_cache[file_], n["snippet"], line)
+                problem = check_snippet(line_cache[cache_key], n["snippet"], line)
                 if problem:
                     # invented code is an error; merely distant code is a warning
                     (warnings if "but node cites" in problem else errors).append(f"{np_}: {problem}")
@@ -137,14 +147,15 @@ def validate(data: dict, repo: Path | None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("flow_json")
-    ap.add_argument("--repo", help="repo root; enables file:line checks")
+    ap.add_argument("--repo", action="append",
+                    help="repo root; enables file:line checks. Repeat as NAME=PATH for flows spanning several repos")
     args = ap.parse_args()
     try:
         data = json.loads(Path(args.flow_json).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         print(f"ERROR: cannot read {args.flow_json}: {exc}")
         sys.exit(1)
-    errors, warnings = validate(data, Path(args.repo) if args.repo else None)
+    errors, warnings = validate(data, parse_repo_args(args.repo))
     for w in warnings:
         print(f"WARN:  {w}")
     for e in errors:

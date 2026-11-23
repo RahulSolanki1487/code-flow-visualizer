@@ -109,6 +109,14 @@ docs/PLAN.md                    ← this file
 
 ---
 
+## Phase 6 – Cross-repo (frontend ↔ backend) linking – in progress
+- [x] `find_api_calls.py`: frontend HTTP calls (fetch/axios/HttpClient/Dart; constants inlined; runtime verbs and optional suffixes handled)
+- [x] `route_table.py`: backend routes with full paths (Spring, ASP.NET controllers + MapGroup, Express mounts, NestJS, FastAPI/Flask prefixes)
+- [x] `match_api.py`: exact/likely matching, unmatched calls, uncalled routes. Tried on springboot-react (frontend+backend in one repo), dotnet-starter-kit (dashboard + API: 136 of 140 resolvable calls matched, all exact) and sample Angular/Express
+- [x] Multi-repo roots: `--repo NAME=PATH` for validate/render, node `repo` field
+- [ ] Stitcher: replace the frontend's external-API node with a link into the backend flow and back (after reviewing match reports on the next test repos)
+- [ ] Try more stacks (user will provide frontend/backend repos): Vue/Next.js server calls, Django/Rails/Laravel prefixes, GraphQL/gRPC
+
 ## Ideas for later
 - Diff mode: highlight which steps changed in a PR
 - Multi-flow index page for a whole service

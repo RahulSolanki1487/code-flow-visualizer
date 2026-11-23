@@ -60,6 +60,8 @@ def _stub(stub_id: str, label: str, target_flow: str, anchor: dict, description:
     }
     if anchor.get("file"):
         node["file"], node["line"] = anchor["file"], anchor.get("line", 1)
+        if anchor.get("repo"):
+            node["repo"] = anchor["repo"]  # stays valid when a flow spans several repos
     return node
 
 

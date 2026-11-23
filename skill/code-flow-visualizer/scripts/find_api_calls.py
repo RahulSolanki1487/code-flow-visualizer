@@ -217,9 +217,29 @@ def substitute_constants(text: str) -> str:
         pos = m.end()
 
 
+URL_PROPERTY_RE = re.compile(r"""\burl\s*:\s*(?=['"`])""")
+# generated clients: `(options.client ?? client).post<R, E>({ url: '/api/v1/x', ... })`
+PAREN_CALL_RE = re.compile(r"""\)\s*\.\s*(get|post|put|patch|delete|head|options)\s*(?:<[^()]*?>)?\s*\(\s*(?=\{)""")
+
+
+def url_from_options(args: str):
+    """`{ url: '/x', ...options }` -> (url, dynamic) or None. Used by generated clients (hey-api, openapi-typescript-codegen)."""
+    m = URL_PROPERTY_RE.search(args)
+    if not m:
+        return None
+    url, _end, dynamic = read_string_literal(args, m.end())
+    return (url, dynamic) if url is not None else None
+
+
 def find_calls_in_text(text: str, rel: str) -> list[dict]:
     text = substitute_constants(text)
     calls = []
+    for m in PAREN_CALL_RE.finditer(text):
+        found = url_from_options(call_arguments(text, m.end()))
+        if found and found[0].startswith("/"):
+            calls.append({"file": rel, "line": text.count("\n", 0, m.start()) + 1, "callee": ")." + m.group(1),
+                          "methods": [m.group(1).upper()], "url": clean_url(found[0]), "dynamic": found[1],
+                          "base_unknown": False, "optional_suffix": False, "unresolved": False})
     for m in CALL_RE.finditer(text):
         if re.search(r"(function|def|async|Future<\w+>)\s+$", text[max(0, m.start() - 24):m.start()]):
             continue  # a definition such as `export async function apiFetch<T>(`, not a call
@@ -227,6 +247,10 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
         url, _end, dynamic, base_unknown, optional_suffix = read_url_argument(text, m.end())
         callee = re.sub(r"\s+", "", m.group(1))
         args = call_arguments(text, m.end())
+        if url is None and args.lstrip().startswith("{"):   # client.get({ url: '/x' })
+            found = url_from_options(args)
+            if found and found[0].startswith("/"):
+                url, dynamic = found
         base = {"file": rel, "line": start_line, "callee": callee, "methods": methods_for(callee, args)}
         if url is None:
             calls.append({**base, "url": None, "dynamic": False, "base_unknown": False,

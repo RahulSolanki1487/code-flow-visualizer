@@ -293,3 +293,76 @@ def test_a_base_url_that_hides_every_match_is_diagnosed(tmp_path):
     assert any("HINT" in n and "3 of 3 calls would match" in n for n in result["notes"])
     ok = match_api.run([("web", tmp_path / "fe")], [("api", tmp_path / "be")], bases={"web": ""})
     assert len({m["call"]["line"] for m in ok["matches"]}) == 3 and not any("HINT" in n for n in ok["notes"])
+
+
+# ---- 7.5 FastAPI / Flask router graphs and generated clients -------------------------
+
+def fastapi_project(tmp_path):
+    write(tmp_path, "app/core/config.py", 'class Settings:\n    API_V1_STR: str = "/api/v1"\n    PROJECT: str = "demo"\n')
+    write(tmp_path, "app/main.py",
+          "from fastapi import FastAPI\nfrom app.api.main import api_router\nfrom app.core.config import settings\n"
+          "app = FastAPI(title='x')\n"
+          "app.include_router(api_router, prefix=settings.API_V1_STR)\n"
+          "@app.get('/health')\ndef health(): ...\n")
+    write(tmp_path, "app/api/main.py",
+          "from fastapi import APIRouter\nfrom app.api.routes import items, users\nfrom .routes.admin import router as admin_router\n"
+          "api_router = APIRouter()\n"
+          "api_router.include_router(users.router)\n"
+          "api_router.include_router(items.router, prefix='/catalog')\n"
+          "if settings.ENV == 'dev':\n    api_router.include_router(admin_router, prefix=f'/{settings.PROJECT}')\n")
+    write(tmp_path, "app/api/routes/items.py",
+          "from fastapi import APIRouter\nrouter = APIRouter(prefix='/items', tags=['items'])\n"
+          "@router.get('/')\ndef read_items(): ...\n@router.put('/{id}')\ndef update_item(id): ...\n")
+    write(tmp_path, "app/api/routes/users.py",
+          "from fastapi import APIRouter\nrouter = APIRouter(prefix='/users')\n"
+          "@router.api_route('/me', methods=['GET', 'PATCH'])\ndef me(): ...\n@router.post('/signup')\ndef signup(): ...\n")
+    write(tmp_path, "app/api/routes/admin.py", "from fastapi import APIRouter\nrouter = APIRouter(prefix='/admin')\n@router.delete('/{name}')\ndef rm(name): ...\n")
+    write(tmp_path, "app/api/routes/orphan.py", "from fastapi import APIRouter\nlost = APIRouter(prefix='/lost')\n@lost.get('/x')\ndef x(): ...\n")
+    return tmp_path
+
+
+def test_fastapi_prefix_chain_across_files_constants_and_fstrings(tmp_path):
+    got = routes_of(fastapi_project(tmp_path))
+    included = {k: v for k, v in got.items() if k[1] != "/lost/x"}
+    assert set(included) == {
+        ("GET", "/health"),                                   # decorator on the app itself
+        ("GET", "/api/v1/users/me"), ("PATCH", "/api/v1/users/me"),   # api_route(methods=[...]); API_V1_STR from another file
+        ("POST", "/api/v1/users/signup"),
+        ("GET", "/api/v1/catalog/items"), ("PUT", "/api/v1/catalog/items/{id}"),   # include_router(prefix=...) + own prefix
+        ("DELETE", "/api/v1/demo/admin/{name}"),               # f-string prefix using a constant; aliased relative import
+    }
+    assert all(r.prefix_known for r in included.values())
+
+
+def test_fastapi_item_routes_use_the_prefix_they_are_included_with(tmp_path):
+    keys = set(routes_of(fastapi_project(tmp_path)))
+    assert ("GET", "/api/v1/catalog/items") in keys and ("PUT", "/api/v1/catalog/items/{id}") in keys
+    assert ("GET", "/api/v1/items") not in keys     # items.router is only included under /catalog
+
+
+def test_fastapi_router_nobody_includes_has_an_unknown_prefix(tmp_path):
+    got = routes_of(fastapi_project(tmp_path))
+    assert got[("GET", "/lost/x")].prefix_known is False
+
+
+def test_flask_blueprints_and_methods(tmp_path):
+    write(tmp_path, "shop/orders.py",
+          "from flask import Blueprint\nbp = Blueprint('orders', __name__, url_prefix='/orders')\n"
+          "@bp.route('/', methods=['GET', 'POST'])\ndef index(): ...\n@bp.route('/<int:id>')\ndef one(id): ...\n")
+    write(tmp_path, "shop/__init__.py",
+          "from flask import Flask\nfrom .orders import bp\napp = Flask(__name__)\napp.register_blueprint(bp, url_prefix='/v1')\n"
+          "@app.route('/ping')\ndef ping(): ...\n")
+    keys = set(routes_of(tmp_path))
+    assert {("GET", "/v1/orders"), ("POST", "/v1/orders"), ("GET", "/v1/orders/<int:id>"), ("GET", "/ping")} <= keys
+
+
+def test_generated_client_urls_in_option_objects(tmp_path):
+    write(tmp_path, "src/client/sdk.gen.ts",
+          "export class ItemsService {\n"
+          "  public static readItems(options) {\n"
+          "    return (options.client ?? client).get<A, B, C>({\n      responseType: 'json',\n      url: '/api/v1/items/',\n      ...options\n    });\n  }\n"
+          "  public static deleteItem(options) {\n"
+          "    return (options.client ?? client).delete<A, B>({\n      url: '/api/v1/items/{id}',\n      ...options\n    });\n  }\n}\n"
+          "const r = client.post({ url: '/api/v1/login', body });\n")
+    got = [(c["methods"], c["url"]) for c in find_api_calls.scan(tmp_path)]
+    assert got == [(["GET"], "/api/v1/items"), (["DELETE"], "/api/v1/items/{id}"), (["POST"], "/api/v1/login")]

@@ -21,6 +21,7 @@ from pathlib import Path
 import django_routes
 import find_entry_points
 import laravel_routes
+import python_web_routes
 import rails_routes
 from find_entry_points import SKIP_DIRS
 
@@ -201,19 +202,10 @@ def resolve_nestjs(repo, hits, all_hits, cache):
     return out
 
 
-PY_PREFIX_RE = re.compile(r"""(?:APIRouter\([^)]*prefix\s*=|Blueprint\([^)]*url_prefix\s*=)\s*['"]([^'"]+)['"]""")
-
-
-def resolve_python(repo, hits, all_hits, cache):
-    out = []
-    for h in hits:
-        verb, path = (h["groups"] + ["", ""])[:2]
-        text = read_text(repo, h["file"], cache)
-        prefixes = PY_PREFIX_RE.findall(text)
-        uses_router = bool(re.search(r"APIRouter\(|Blueprint\(", text))
-        known = bool(prefixes) or not uses_router
-        out.append(Route(verb_of(verb), join_path(prefixes[0] if prefixes else "", path), h["file"], h["line"], h["framework"], "", known))
-    return out
+def resolve_python_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "fastapi-flask", r["view"], r["known"])
+            for r in python_web_routes.collect(repo, read)]
 
 
 def resolve_default(repo, hits, all_hits, cache):
@@ -245,13 +237,14 @@ def resolve_laravel_repo(repo, cache):
 
 
 # resolvers that read whole route files of a repo (keyed by the framework names the entry-point scan uses)
-REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo, "laravel": resolve_laravel_repo}
+REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo, "laravel": resolve_laravel_repo,
+                  "fastapi-flask": resolve_python_repo}
 
 RESOLVERS = {
     "spring": resolve_spring, "spring-method": resolve_spring_method, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,
-    "express": resolve_express, "nestjs": resolve_nestjs, "fastapi-flask": resolve_python,
+    "express": resolve_express, "nestjs": resolve_nestjs,
 }
-ROUTE_FRAMEWORK_ALIASES = {"fastapi": "fastapi-flask", "flask": "fastapi-flask"}
+ROUTE_FRAMEWORK_ALIASES = {"fastapi/flask": "fastapi-flask"}  # the name the entry-point scan reports
 
 
 def collect_routes(repo: Path, limit: int = 100000) -> list[Route]:

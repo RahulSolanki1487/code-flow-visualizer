@@ -115,7 +115,11 @@ docs/PLAN.md                    ← this file
 - [x] `match_api.py`: exact/likely matching, unmatched calls, uncalled routes. Tried on springboot-react (frontend+backend in one repo), dotnet-starter-kit (dashboard + API: 136 of 140 resolvable calls matched, all exact) and sample Angular/Express
 - [x] Multi-repo roots: `--repo NAME=PATH` for validate/render, node `repo` field
 - [x] Stitcher `stitch_flows.py`: `link_to` on the call-site node and `callers` on the backend entry node, likely matches marked inferred, report of calls without a flow/route, ambiguous matches and uncalled backend flows. Tried on Demo.MultiDb (Angular + .NET) and the sample apps; `examples/cross-repo/`
-- [ ] Try more stacks (user will provide frontend/backend repos): Vue/Next.js server calls, Django/Rails/Laravel prefixes, GraphQL/gRPC
+- [x] Gateway support: `--gateway-config` (nginx.conf, Ocelot JSON) and `--gateway-prefix`; demo in `examples/cross-repo-gateway/`. Earlier claim that `likely` covers gateway prefixes was wrong: a prefix on top of known routes matched nothing before this
+- [x] Public test repos checked and documented: `docs/TEST-REPOS.md` (RealWorld frontends/backends, FastAPI template)
+- [ ] Django `url()`/`include()` prefixes; Rails `resources`/`namespace` DSL; Laravel `api.php` prefix and route groups
+- [ ] FastAPI `include_router` prefixes and generated TypeScript clients; Express multi-level `router.use`; wrapper services (`ApiService.get('articles')`)
+- [ ] GraphQL and gRPC
 
 ## Ideas for later
 - Diff mode: highlight which steps changed in a PR

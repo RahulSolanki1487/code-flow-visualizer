@@ -55,6 +55,10 @@ validated with `--repo web=../web-app --repo api=../api`. Supported so far: call
 Angular `HttpClient`, Dart `http`/`dio`; routes for Spring, ASP.NET (controllers and minimal APIs with
 `MapGroup`), Express, NestJS, FastAPI/Flask (other stacks are matched with an unknown prefix, so only as `likely`).
 
+Behind a gateway, add `--gateway-config nginx.conf` (nginx or Ocelot JSON) or `--gateway-prefix orders=orders-svc`
+so a call to `/orders-svc/api/v1/orders` is matched to the service's `/api/v1/orders`
+(demo: `examples/cross-repo-gateway/`; public repos to try: [docs/TEST-REPOS.md](docs/TEST-REPOS.md)).
+
 Link the two sides automatically: trace the frontend flow and a flow per backend route it reaches, then
 ```bash
 python skill/code-flow-visualizer/scripts/stitch_flows.py flow.json --frontend web=../web-app --backend api=../api -o flow.json

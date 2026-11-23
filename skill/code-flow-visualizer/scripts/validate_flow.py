@@ -91,6 +91,9 @@ def validate(data: dict, repo=None):
                 warnings.append(f"{np_}: label longer than {MAX_LABEL} chars")
             if n.get("link_to") and n["link_to"] not in flow_ids:
                 errors.append(f"{np_}: link_to '{n['link_to']}' is not a flow id")
+            for caller in n.get("callers") or []:
+                if caller.get("flow") not in flow_ids:
+                    errors.append(f"{np_}: callers entry points at unknown flow '{caller.get('flow')}'")
             if n.get("inferred") and not n.get("note"):
                 warnings.append(f"{np_}: inferred but no 'note' explaining why")
             file_, line = n.get("file"), n.get("line")

@@ -1,0 +1,394 @@
+{
+  "project": "sample-angular-app + sample-express-app (two repos)",
+  "generated_at": "2026-11-22",
+  "flows": [
+    {
+      "id": "login_to_checkout",
+      "title": "Login to checkout (Angular)",
+      "mode": "user",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "/cart and /checkout are protected by authGuard. Anonymous visitors are sent to /login with a returnUrl, sign in, and are returned to where they were headed. Checkout posts the order and goes back to the cart.",
+      "entry": "visit_cart",
+      "nodes": [
+        {
+          "id": "visit_cart",
+          "label": "Open /cart",
+          "type": "ui",
+          "file": "src/app/app.routes.ts",
+          "line": 9,
+          "description": "The cart route is guarded by authGuard. The empty path redirects here too.",
+          "snippet": "{ path: 'cart', component: CartComponent, canActivate: [authGuard] },",
+          "repo": "web"
+        },
+        {
+          "id": "guard",
+          "label": "authGuard: logged in?",
+          "type": "decision",
+          "file": "src/app/auth/auth.guard.ts",
+          "line": 5,
+          "description": "Returns true when AuthService has a token, otherwise a UrlTree redirecting to /login with the requested URL as returnUrl.",
+          "snippet": "if (auth.isLoggedIn()) {",
+          "repo": "web"
+        },
+        {
+          "id": "login_page",
+          "label": "Login page",
+          "type": "ui",
+          "file": "src/app/pages/login.component.ts",
+          "line": 15,
+          "description": "Email and password form; submit() calls AuthService.login.",
+          "snippet": "this.auth.login(this.email, this.password).subscribe({",
+          "repo": "web"
+        },
+        {
+          "id": "login_api",
+          "label": "POST /api/login",
+          "type": "external",
+          "file": "src/app/auth/auth.service.ts",
+          "line": 15,
+          "description": "HTTP call returning a token.",
+          "snippet": "return this.http.post<{ token: string }>('/api/login', { email, password });",
+          "repo": "web"
+        },
+        {
+          "id": "login_error",
+          "label": "Invalid email or password",
+          "type": "error",
+          "file": "src/app/pages/login.component.ts",
+          "line": 22,
+          "description": "Any failed login sets an error message and leaves the user on the form.",
+          "snippet": "this.error = 'Invalid email or password';",
+          "repo": "web"
+        },
+        {
+          "id": "return",
+          "label": "Go to returnUrl",
+          "type": "ui",
+          "file": "src/app/pages/login.component.ts",
+          "line": 19,
+          "description": "Stores the token, then navigates to the returnUrl query param, defaulting to /cart.",
+          "snippet": "this.router.navigateByUrl(returnUrl);",
+          "repo": "web"
+        },
+        {
+          "id": "cart",
+          "label": "Cart page",
+          "type": "ui",
+          "file": "src/app/pages/cart.component.ts",
+          "line": 12,
+          "description": "Checkout does nothing when the cart is empty; otherwise it navigates to /checkout.",
+          "snippet": "if (this.items.length === 0) {",
+          "repo": "web"
+        },
+        {
+          "id": "checkout",
+          "label": "Checkout page",
+          "type": "ui",
+          "file": "src/app/pages/checkout.component.ts",
+          "line": 11,
+          "description": "Guarded like the cart. Pay posts the order.",
+          "snippet": "this.http.post('/api/orders', {}).subscribe({",
+          "repo": "web",
+          "link_to": "create_order"
+        },
+        {
+          "id": "pay_error",
+          "label": "Payment failed",
+          "type": "error",
+          "file": "src/app/pages/checkout.component.ts",
+          "line": 14,
+          "description": "Shows an error and stays on checkout so the user can retry.",
+          "snippet": "this.error = 'Payment failed, please try again';",
+          "repo": "web"
+        }
+      ],
+      "edges": [
+        {
+          "from": "visit_cart",
+          "to": "guard"
+        },
+        {
+          "from": "guard",
+          "to": "cart",
+          "label": "logged in"
+        },
+        {
+          "from": "guard",
+          "to": "login_page",
+          "label": "no: redirect /login?returnUrl"
+        },
+        {
+          "from": "login_page",
+          "to": "login_api",
+          "label": "submits form"
+        },
+        {
+          "from": "login_api",
+          "to": "return",
+          "label": "token"
+        },
+        {
+          "from": "login_api",
+          "to": "login_error",
+          "label": "401",
+          "kind": "error"
+        },
+        {
+          "from": "login_error",
+          "to": "login_page",
+          "label": "tries again"
+        },
+        {
+          "from": "return",
+          "to": "cart"
+        },
+        {
+          "from": "cart",
+          "to": "checkout",
+          "label": "clicks Checkout"
+        },
+        {
+          "from": "checkout",
+          "to": "cart",
+          "label": "order placed"
+        },
+        {
+          "from": "checkout",
+          "to": "pay_error",
+          "label": "payment fails",
+          "kind": "error"
+        },
+        {
+          "from": "pay_error",
+          "to": "checkout",
+          "label": "retries"
+        }
+      ],
+      "notes": [
+        "returnUrl is read from the query string without validation; navigateByUrl treats it as an in-app route, so it cannot leave the app, but a crafted link can send the user to any route after login.",
+        "The token lives only in memory (a signal), so a page reload logs the user out."
+      ]
+    },
+    {
+      "id": "create_order",
+      "title": "POST /api/orders – place order",
+      "mode": "code",
+      "diagram": "flowchart",
+      "direction": "TD",
+      "summary": "Authenticates the caller, reserves stock, charges the card through the payment service and saves the order. Out-of-stock returns 409; other failures return 500.",
+      "entry": "route",
+      "nodes": [
+        {
+          "id": "route",
+          "label": "POST /api/orders",
+          "type": "entry",
+          "file": "src/routes/orders.js",
+          "line": 5,
+          "description": "Router mounted under /api in app.js. Runs the auth middleware, then the create controller.",
+          "snippet": "router.post('/orders', auth, ordersController.create);",
+          "repo": "api",
+          "callers": [
+            {
+              "flow": "login_to_checkout",
+              "node": "checkout",
+              "label": "Login to checkout (Angular): Checkout page"
+            }
+          ]
+        },
+        {
+          "id": "auth",
+          "label": "auth middleware",
+          "type": "decision",
+          "file": "src/middleware/auth.js",
+          "line": 1,
+          "description": "Checks for an Authorization header and sets req.user. No token means the request stops with 401.",
+          "snippet": "if (!token) {\n  return res.status(401).json({ error: 'unauthorized' });\n}",
+          "repo": "api"
+        },
+        {
+          "id": "unauthorized",
+          "label": "401 Unauthorized",
+          "type": "error",
+          "file": "src/middleware/auth.js",
+          "line": 4,
+          "description": "Request rejected before reaching the controller.",
+          "repo": "api"
+        },
+        {
+          "id": "create_ctrl",
+          "label": "ordersController.create",
+          "type": "logic",
+          "file": "src/controllers/ordersController.js",
+          "line": 3,
+          "description": "Calls placeOrder with the user id and cart items, and maps errors to HTTP status codes.",
+          "snippet": "const order = await orderService.placeOrder(req.user.id, req.body.items);\nres.status(201).json(order);",
+          "repo": "api"
+        },
+        {
+          "id": "place_order",
+          "label": "orderService.placeOrder",
+          "type": "logic",
+          "file": "src/services/orderService.js",
+          "line": 5,
+          "description": "Core business logic: reserve stock, compute total, charge, then persist.",
+          "repo": "api"
+        },
+        {
+          "id": "reserve",
+          "label": "inventoryRepo.reserve",
+          "type": "data",
+          "file": "src/repositories/inventoryRepo.js",
+          "line": 3,
+          "description": "Runs one conditional UPDATE per item. Returns true only if every item was reserved.",
+          "snippet": "return results.every(r => r.rowCount === 1);",
+          "repo": "api"
+        },
+        {
+          "id": "stock_ok",
+          "label": "All items available?",
+          "type": "decision",
+          "file": "src/services/orderService.js",
+          "line": 7,
+          "description": "If any reservation failed, throws an OUT_OF_STOCK error.",
+          "repo": "api"
+        },
+        {
+          "id": "out_of_stock",
+          "label": "409 Out of stock",
+          "type": "error",
+          "file": "src/controllers/ordersController.js",
+          "line": 9,
+          "description": "Controller catches err.code === 'OUT_OF_STOCK' and responds with 409.",
+          "note": "Reserved stock for other items in the same order is not released. Possible inventory leak.",
+          "repo": "api"
+        },
+        {
+          "id": "charge",
+          "label": "paymentClient.charge",
+          "type": "external",
+          "file": "src/clients/paymentClient.js",
+          "line": 3,
+          "description": "POSTs to the payment service at PAYMENT_URL/charges. Throws if the response is not OK.",
+          "repo": "api"
+        },
+        {
+          "id": "payment_api",
+          "label": "Payment service",
+          "type": "external",
+          "description": "Third-party HTTP API. The URL comes from the PAYMENT_URL env var.",
+          "inferred": true,
+          "note": "Behaviour depends on environment configuration; not visible in this repo.",
+          "repo": "api"
+        },
+        {
+          "id": "save",
+          "label": "orderRepo.save",
+          "type": "data",
+          "file": "src/repositories/orderRepo.js",
+          "line": 3,
+          "description": "Inserts the order row and returns it.",
+          "repo": "api"
+        },
+        {
+          "id": "created",
+          "label": "201 Created",
+          "type": "entry",
+          "file": "src/controllers/ordersController.js",
+          "line": 6,
+          "description": "Order JSON returned to the client.",
+          "repo": "api"
+        },
+        {
+          "id": "server_error",
+          "label": "500 Internal error",
+          "type": "error",
+          "file": "src/controllers/ordersController.js",
+          "line": 11,
+          "description": "Any other failure, e.g. a payment error, ends here.",
+          "note": "If the charge succeeds but save fails, the customer is charged with no order stored.",
+          "repo": "api"
+        }
+      ],
+      "edges": [
+        {
+          "from": "route",
+          "to": "auth",
+          "label": "middleware"
+        },
+        {
+          "from": "auth",
+          "to": "unauthorized",
+          "label": "no token",
+          "kind": "error"
+        },
+        {
+          "from": "auth",
+          "to": "create_ctrl",
+          "label": "next()"
+        },
+        {
+          "from": "create_ctrl",
+          "to": "place_order",
+          "label": "await"
+        },
+        {
+          "from": "place_order",
+          "to": "reserve",
+          "label": "await"
+        },
+        {
+          "from": "reserve",
+          "to": "stock_ok"
+        },
+        {
+          "from": "stock_ok",
+          "to": "out_of_stock",
+          "label": "no",
+          "kind": "error"
+        },
+        {
+          "from": "stock_ok",
+          "to": "charge",
+          "label": "yes"
+        },
+        {
+          "from": "charge",
+          "to": "payment_api",
+          "label": "HTTP POST",
+          "inferred": true
+        },
+        {
+          "from": "charge",
+          "to": "server_error",
+          "label": "payment failed",
+          "kind": "error"
+        },
+        {
+          "from": "charge",
+          "to": "save",
+          "label": "paid"
+        },
+        {
+          "from": "save",
+          "to": "created"
+        }
+      ],
+      "notes": [
+        "No database transaction wraps reserve → charge → save.",
+        "No retry or idempotency key on the payment call."
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from_flow": "login_to_checkout",
+      "from_node": "checkout",
+      "to_flow": "create_order",
+      "to_node": "route",
+      "confidence": "exact",
+      "call": "POST /api/orders",
+      "route": "POST /api/orders"
+    }
+  ]
+}

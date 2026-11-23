@@ -55,6 +55,13 @@ validated with `--repo web=../web-app --repo api=../api`. Supported so far: call
 Angular `HttpClient`, Dart `http`/`dio`; routes for Spring, ASP.NET (controllers and minimal APIs with
 `MapGroup`), Express, NestJS, FastAPI/Flask (other stacks are matched with an unknown prefix, so only as `likely`).
 
+Link the two sides automatically: trace the frontend flow and a flow per backend route it reaches, then
+```bash
+python skill/code-flow-visualizer/scripts/stitch_flows.py flow.json --frontend web=../web-app --backend api=../api -o flow.json
+```
+adds "Open sub-flow" on the call-site step and "Called from" on the backend entry step, and lists calls
+whose route has no flow yet. See `examples/cross-repo/` (sample Angular app + sample Express app).
+
 ## How it works
 
 ```

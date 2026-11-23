@@ -111,7 +111,7 @@ def has_external(data, _repo, _param):
 
 @check("plain_summary")
 def plain_summary(data, _repo, _param):
-    """Every flow has an 'In plain words' text that names every diagram step exactly and contains no other code."""
+    """Every flow has an 'How it works' text that names every diagram step exactly and contains no other code."""
     bad = {f.get("id", "?"): plain_language.problems(f.get("plain_summary"), plain_language.step_labels(f)) for f in _flows(data)}
     bad = {fid: why for fid, why in bad.items() if why}
     detail = "; ".join(f"{fid}: {', '.join(why)}" for fid, why in list(bad.items())[:2])

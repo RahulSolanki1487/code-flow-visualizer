@@ -47,7 +47,7 @@
       <span class="badge text-bg-light border" id="cfv-count"></span>
     </div>
     <div class="alert alert-primary border-0 my-3 d-none" id="cfv-plain" role="note">
-      <div class="text-uppercase small fw-semibold mb-1">In plain words</div>
+      <div class="text-uppercase small fw-semibold mb-1">How it works</div>
       <div class="fs-6" id="cfv-plain-text"></div>
     </div>
     <p class="text-body-secondary small" id="cfv-summary"></p>
@@ -187,7 +187,7 @@
       + '<span><svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="currentColor" stroke-dasharray="4 3"/></svg>Inferred</span>';
   }
 
-  // The "In plain words" text names diagram steps exactly as the diagram shows them; each name becomes a link to its step.
+  // The "How it works" text names diagram steps exactly as the diagram shows them; each name becomes a link to its step.
   function renderPlain(flow) {
     const box = $('cfv-plain'), out = $('cfv-plain-text');
     if (!flow.plain_summary) { out.textContent = ''; box.classList.add('d-none'); return; }

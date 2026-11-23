@@ -1,4 +1,4 @@
-"""The 'In plain words' summary: a short story that names every diagram step exactly, so management can match text to boxes."""
+"""The 'How it works' summary: a short story that names every diagram step exactly, so management can match text to boxes."""
 import json
 import sys
 from pathlib import Path
@@ -80,7 +80,7 @@ def test_validator_warns_when_missing_incomplete_or_technical_but_never_errors()
 
 def test_plain_summary_reaches_the_page_data_and_the_template_has_the_box_and_the_links():
     html = render_page.render({"project": "p", "flows": [flow(GOOD)]})
-    assert "In plain words" in html and 'id="cfv-plain-text"' in html and "cfv-ref" in html
+    assert "How it works" in html and 'id="cfv-plain-text"' in html and "cfv-ref" in html
     assert render_page.build_flow(flow(GOOD))["plain_summary"] == GOOD
     assert render_page.build_flow(flow(None))["plain_summary"] == ""
 

@@ -95,7 +95,7 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 - Node ids: short, `snake_case`, unique.
 - Node `type` ∈ `entry, logic, data, external, decision, error, ui, event`.
 - Keep labels short (≤ 40 chars); put detail in `description`.
-- **Write `plain_summary` for every flow**: the "In plain words" box at the top of the page, for a non-technical reader such as a manager.
+- **Write `plain_summary` for every flow**: the "How it works" box at the top of the page, for a non-technical reader such as a manager.
   Tell the story of the flow in simple sentences, from the first step to the last, **naming every step of the diagram exactly as the
   diagram labels it** (`auth middleware`, `POST /products`, `All items available?`) so the reader can match each sentence to a box.
   Include the branches and failures (what happens when a check says no) and what the person finally sees.

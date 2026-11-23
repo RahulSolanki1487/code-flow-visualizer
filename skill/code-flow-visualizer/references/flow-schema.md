@@ -46,7 +46,7 @@
 | `diagram` | no | `flowchart` (default), `sequence` or `state` |
 | `direction` | no | flowchart only: `TD` (default) or `LR` |
 | `summary` | yes | 1–3 sentences, technical |
-| `plain_summary` | recommended | The story of the flow in simple language for non-technical readers (management), naming **every diagram step exactly as its label** (`auth middleware`, `POST /products`) so the reader can match text to boxes. Shown as the "In plain words" box; each step name links to its step. The validator warns when it is missing, leaves a step out, or contains other code (60+ characters; about 70 per step) |
+| `plain_summary` | recommended | The story of the flow in simple language for non-technical readers (management), naming **every diagram step exactly as its label** (`auth middleware`, `POST /products`) so the reader can match text to boxes. Shown as the "How it works" box; each step name links to its step. The validator warns when it is missing, leaves a step out, or contains other code (60+ characters; about 70 per step) |
 | `entry` | yes | node id of the starting node |
 | `nodes` | yes | list |
 | `edges` | yes | list |

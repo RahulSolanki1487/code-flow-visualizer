@@ -188,7 +188,60 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
     return calls
 
 
-def scan(repo: Path, limit: int = 2000) -> list[dict]:
+BASE_URL_PATTERNS = (
+    # axios.create({ baseURL: 'https://host/api' }) / axios.defaults.baseURL = '/api'
+    re.compile(r"""baseURL\s*[:=]\s*(['"`])([^'"`$]+)\1"""),
+    # Angular / fetch interceptors: req.clone({ url: `https://host/api${req.url}` })
+    re.compile(r"""\burl\s*:\s*`([^`$]*)\$\{\s*req(?:uest)?\.url\s*\}`"""),
+)
+
+
+def detect_base_urls(repo: Path) -> list[dict]:
+    """Base paths a frontend prepends to its calls outside the call sites (axios baseURL, interceptors).
+
+    Returns [{"base": "/api", "file": ..., "line": ...}] with scheme and host removed; hosts alone are ignored.
+    """
+    found = []
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        for name in sorted(files):
+            path = Path(root) / name
+            if path.suffix.lower() not in EXTENSIONS or any(m in "/" + path.relative_to(repo).as_posix() for m in TEST_MARKERS):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if "baseURL" not in text and "req.url" not in text and "request.url" not in text:
+                continue
+            for pattern in BASE_URL_PATTERNS:
+                for m in pattern.finditer(text):
+                    raw = m.group(m.lastindex if pattern is BASE_URL_PATTERNS[0] else 1)
+                    base = SCHEME_RE.sub("", raw).rstrip("/")
+                    if base.startswith("/") and len(base) > 1:
+                        found.append({"base": base, "file": path.relative_to(repo).as_posix(),
+                                      "line": text.count("\n", 0, m.start()) + 1})
+    return found
+
+
+def apply_base_url(calls: list[dict], base: str) -> list[dict]:
+    """Prefix internal call URLs with `base` (skipping calls that already start with it)."""
+    base = "/" + base.strip("/")
+    out = []
+    for c in calls:
+        url = c.get("url")
+        if url and url.startswith("/") and not (url == base or url.startswith(base + "/")):
+            c = {**c, "url": base + (url if url != "/" else ""), "base_applied": base}
+        out.append(c)
+    return out
+
+
+def scan(repo: Path, limit: int = 2000, base: str | None = None) -> list[dict]:
+    calls = _scan_files(repo, limit)
+    return apply_base_url(calls, base) if base else calls
+
+
+def _scan_files(repo: Path, limit: int) -> list[dict]:
     out = []
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]

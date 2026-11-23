@@ -138,17 +138,40 @@ def parse_repo_args(values: list[str]) -> list[tuple[str, Path]]:
     return out
 
 
-def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rules=()) -> dict:
+def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rules=(), bases=None) -> dict:
+    """`bases`: {frontend name: base path}. None means: detect (axios baseURL, interceptors) and use it when unambiguous."""
+    bases, notes = resolve_bases(frontends, bases)
     calls = []
     for name, path in frontends:
-        for c in find_api_calls.scan(path):
+        for c in find_api_calls.scan(path, base=bases.get(name)):
             calls.append({**c, "repo": name})
     routes = []
     for name, path in backends:
         for r in route_table.collect_routes(path):
             r.repo = name
             routes.append(r)
-    return match(calls, routes, rules)
+    result = match(calls, routes, rules)
+    result["notes"] = notes
+    return result
+
+
+def resolve_bases(frontends: list[tuple[str, Path]], explicit) -> tuple[dict, list[str]]:
+    """Final base path per frontend plus human-readable notes about where each came from."""
+    explicit, notes, bases = dict(explicit or {}), [], {}
+    for name, path in frontends:
+        if name in explicit:
+            if explicit[name]:
+                bases[name] = "/" + explicit[name].strip("/")
+                notes.append(f"{name}: base URL {bases[name]} (from --base-url)")
+            continue
+        found = find_api_calls.detect_base_urls(path)
+        distinct = sorted({f["base"] for f in found})
+        if len(distinct) == 1:
+            bases[name] = distinct[0]
+            notes.append(f"{name}: base URL {distinct[0]} detected at {found[0]['file']}:{found[0]['line']} (override with --base-url {name}=...; --base-url {name}=none to disable)")
+        elif len(distinct) > 1:
+            notes.append(f"{name}: several base URLs found ({', '.join(distinct)}); none applied. Choose one with --base-url {name}=...")
+    return bases, notes
 
 
 def add_gateway_arguments(ap: argparse.ArgumentParser) -> None:
@@ -159,6 +182,26 @@ def add_gateway_arguments(ap: argparse.ArgumentParser) -> None:
                     help="nginx.conf or Ocelot JSON; its rewrite rules are applied (upstream host -> backend by name/folder)")
 
 
+def add_matching_arguments(ap: argparse.ArgumentParser) -> None:
+    add_gateway_arguments(ap)
+    ap.add_argument("--base-url", action="append", metavar="FRONTEND=base",
+                    help="base path the frontend prepends to its calls (api, no leading slash in Git Bash); "
+                         "'none' disables detection. Without it a single axios baseURL / interceptor base is detected")
+
+
+def build_bases(args) -> dict | None:
+    """--base-url web=api -> {'web': 'api'}; None when not given (so run() detects)."""
+    if not args.base_url:
+        return None
+    out = {}
+    for v in args.base_url:
+        name, sep, value = v.partition("=")
+        if not sep or not name:
+            raise ValueError(f"--base-url expects FRONTEND=base, got {v!r}")
+        out[name] = "" if value.lower() == "none" else value
+    return out
+
+
 def build_rules(args, backends: list[tuple[str, Path]]) -> list:
     rules = gateway_rules.explicit_rules(args.gateway_prefix)
     for path in args.gateway_config or []:
@@ -167,7 +210,9 @@ def build_rules(args, backends: list[tuple[str, Path]]) -> list:
 
 
 def format_report(result: dict, with_repo: bool) -> str:
-    lines = []
+    lines = [f"NOTE {n}" for n in result.get("notes", [])]
+    if lines:
+        lines.append("")
     grouped: dict[tuple, list] = {}
     for m in result["matches"]:
         c = m["call"]
@@ -197,10 +242,10 @@ def main(argv=None) -> int:
     ap.add_argument("--frontend", action="append", required=True, help="[NAME=]PATH, repeatable")
     ap.add_argument("--backend", action="append", required=True, help="[NAME=]PATH, repeatable")
     ap.add_argument("--json", action="store_true")
-    add_gateway_arguments(ap)
+    add_matching_arguments(ap)
     args = ap.parse_args(argv)
     frontends, backends = parse_repo_args(args.frontend), parse_repo_args(args.backend)
-    result = run(frontends, backends, build_rules(args, backends))
+    result = run(frontends, backends, build_rules(args, backends), build_bases(args))
     if args.json:
         print(json.dumps(result, indent=2))
     else:

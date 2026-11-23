@@ -128,7 +128,7 @@ full path (`/api/articles/{slug}/favorite`), and the Angular frontend should mat
 
 | # | Item | Acceptance | Status |
 |---|---|---|---|
-| 7.0 | Frontend base URL: `--base-url NAME=/api`, plus detection of axios `baseURL` and Angular interceptors that prepend one | Angular RealWorld calls become `/api/...`; without it, fixing backend prefixes (7.1-7.3) would stop them matching | [ ] |
+| 7.0 | Frontend base URL: `--base-url NAME=/api`, plus detection of axios `baseURL` and Angular interceptors that prepend one | Angular RealWorld calls become `/api/...`; without it, fixing backend prefixes (7.1-7.3) would stop them matching | [x] done: detected `/api` in the Angular interceptor; `--base-url` override |
 | 7.1 | Django: `path`/`re_path`/`url` patterns, nested `include()` prefixes, regex and `<int:id>` converters to parameters | django-realworld: about 19 routes, full paths, no "prefix unknown" | [ ] |
 | 7.2 | Rails: `resources`/`resource` (with `only`/`except`), `namespace`, `scope`, nested, `member`/`collection`, verb lines | rails-realworld: about 19 routes, full paths, Angular match no longer loose (no spray of `likely`) | [ ] |
 | 7.3 | Laravel: automatic `/api` prefix of `routes/api.php`, `Route::prefix()->group()`, `Route::group(['prefix'])`, `resource`/`apiResource` | laravel-realworld: about 19 routes, full paths, Angular match all exact | [ ] |

@@ -42,6 +42,19 @@ and offer the list (or pick the most central one if nobody is there to ask).
 Identify the framework (see `references/frameworks.md`) so you know where
 routes, controllers, DI registrations and screens live.
 
+### 2b. Frontend and backend in separate repos
+When the user has a UI repo and an API repo, find the join points first instead of guessing:
+```bash
+python scripts/match_api.py --frontend web=<web_repo> --backend api=<api_repo>
+```
+It lists every frontend HTTP call, the backend route it reaches (`exact` or `likely`), calls with no
+route (third-party APIs, static files, URLs built at runtime) and routes nobody calls. Use it to:
+- start a flow at a screen, follow it to the call site (`find_api_calls.py <web_repo>`), cross to the
+  matched route (`route_table.py <api_repo>`) and keep tracing in the backend;
+- mark a `likely` match as `inferred` and say why; never draw a link for an unmatched call.
+Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
+`validate_flow.py flow.json --repo web=<web_repo> --repo api=<api_repo>` (same flags for `render_page.py`).
+
 ### 3. Trace
 Follow calls from the entry point:
 - Default **max depth 5**. Stop at framework/library boundaries (don't trace into node_modules, site-packages, JDK).
@@ -99,6 +112,9 @@ steps, and anything inferred or risky (from `notes`).
 ## Files
 - `templates/flow-page.html` – Bootstrap 5 + Mermaid page template (placeholders filled by the renderer)
 - `scripts/find_entry_points.py` – heuristics for routes/handlers/main across common stacks
+- `scripts/find_api_calls.py` – HTTP calls a frontend makes (fetch, axios, HttpClient, Dart)
+- `scripts/route_table.py` – a backend's routes with full paths (class/group prefixes resolved)
+- `scripts/match_api.py` – match frontend calls to backend routes across repos
 - `scripts/validate_flow.py` – schema + file:line checks
 - `scripts/split_flow.py` – split flows over 40 nodes into linked sub-flows
 - `scripts/render_page.py` – JSON → Mermaid → HTML

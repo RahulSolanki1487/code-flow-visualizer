@@ -45,6 +45,16 @@ All packaging commands validate `SKILL.md` first (name, description length, refe
 Then ask Claude something like:
 > "Show me the flow of `POST /orders` in this repo as an HTML page."
 
+## Frontend and backend in separate repos
+```bash
+python skill/code-flow-visualizer/scripts/match_api.py --frontend web=../web-app --backend api=../api
+```
+prints which frontend call reaches which backend route (`exact`/`likely`), calls with no route, and
+routes nobody calls. Flows can then cite files from both repos (`"repo": "web"` on each node) and be
+validated with `--repo web=../web-app --repo api=../api`. Supported so far: calls via `fetch`, `axios`,
+Angular `HttpClient`, Dart `http`/`dio`; routes for Spring, ASP.NET (controllers and minimal APIs with
+`MapGroup`), Express, NestJS, FastAPI/Flask (other stacks are matched with an unknown prefix, so only as `likely`).
+
 ## How it works
 
 ```

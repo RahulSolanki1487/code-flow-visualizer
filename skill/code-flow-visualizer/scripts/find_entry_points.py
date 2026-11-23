@@ -85,7 +85,8 @@ def scan(repo: Path, limit: int):
                     line = text.count("\n", 0, m.start()) + 1
                     groups = [g for g in m.groups() if g]
                     hits.append({"framework": fw, "kind": kind, "file": rel, "line": line,
-                                 "match": " ".join(groups)[:80] or m.group(0).strip()[:80]})
+                                 "match": " ".join(groups)[:80] or m.group(0).strip()[:80],
+                                 "groups": [g or "" for g in m.groups()]})  # raw capture groups, positional
                     if len(hits) >= limit:
                         return hits
     return hits

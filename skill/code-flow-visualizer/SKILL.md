@@ -55,6 +55,10 @@ route (third-party APIs, static files, URLs built at runtime) and routes nobody 
 Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
 `validate_flow.py flow.json --repo web=<web_repo> --repo api=<api_repo>` (same flags for `render_page.py`).
 
+The matcher detects a base URL that the frontend adds outside its call sites (axios `baseURL`, an Angular interceptor) and says so in a
+`NOTE`; override it with `--base-url web=api` or turn it off with `--base-url web=none`. If a `HINT` says more calls would match without
+it, the backend serves without that prefix.
+
 If a gateway or reverse proxy sits between them (the frontend calls `/orders-svc/api/v1/orders`, the service
 serves `/api/v1/orders`), tell the matcher how URLs are rewritten, or those calls stay unmatched:
 `--gateway-config nginx.conf` (or an Ocelot JSON file; upstream hosts are mapped to backends by name or folder

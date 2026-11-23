@@ -102,10 +102,10 @@ def test_express_router_mount_prefix(tmp_path):
 
 def test_nest_controller_prefix_and_unknown_prefix_flag(tmp_path):
     write(tmp_path, "items.controller.ts", "@Controller('items')\nexport class ItemsController {\n  @Get(':id')\n  one() {}\n}\n")
-    write(tmp_path, "web.php", "Route::get('/orders', [C::class, 'i']);\n")
+    write(tmp_path, "main.go", 'r.GET("/orders", h)\n')
     routes = {r.path: r for r in route_table.collect_routes(tmp_path)}
     assert routes["/items/:id"].prefix_known is True
-    assert routes["/orders"].prefix_known is False  # Laravel groups are not resolved
+    assert routes["/orders"].prefix_known is False  # Go routers: groups are not resolved
 
 
 # ---- match_api -----------------------------------------------------------

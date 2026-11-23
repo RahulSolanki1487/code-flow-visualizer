@@ -26,6 +26,9 @@ PATTERNS = [
     # handler methods: verb, optional path, then the method name that follows the annotations
     ("spring", "route", {".java", ".kt"},
      r"""@(Get|Post|Put|Patch|Delete)Mapping\s*(?:\(\s*(?:(?:value|path)\s*=\s*)?"?([^")]*)"?[^)]*\))?\s*(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+)?[\w<>\[\],.? ]+?\s+(\w+)\s*\("""),
+    # method-level @RequestMapping(path = "/x", method = POST): the verb is an attribute (groups: path, verb, method)
+    ("spring-method", "route", {".java", ".kt"},
+     r"""@RequestMapping\s*\(\s*(?:(?:value|path)\s*=\s*)?\{?\s*"([^"]*)"[^)]*?\bmethod\s*=\s*\{?\s*(?:RequestMethod\.)?(GET|POST|PUT|PATCH|DELETE)\b[^)]*\)\s*(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+)?[\w<>\[\],.? ]+?\s+(\w+)\s*\("""),
     # class-level prefix, reported separately so it is not mistaken for a route
     ("spring", "prefix", {".java", ".kt"},
      r"""@RequestMapping\s*\(\s*(?:(?:value|path)\s*=\s*)?"([^"]*)"\s*\)\s*(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+)?class\s+(\w+)"""),

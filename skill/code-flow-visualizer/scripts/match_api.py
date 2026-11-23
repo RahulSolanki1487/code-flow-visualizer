@@ -151,8 +151,32 @@ def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rul
             r.repo = name
             routes.append(r)
     result = match(calls, routes, rules)
-    result["notes"] = notes
+    result["notes"] = notes + _base_url_hints(frontends, bases, calls, routes, rules, result)
     return result
+
+
+def _matched_calls(result: dict) -> int:
+    return len({(m["call"]["repo"], m["call"]["file"], m["call"]["line"], m["call"]["url"]) for m in result["matches"]})
+
+
+def _base_url_hints(frontends, bases, calls, routes, rules, result) -> list[str]:
+    """When an applied base URL leaves most calls unmatched but dropping it matches more, say so."""
+    hints = []
+    total = len(calls)
+    if not bases or not total or _matched_calls(result) * 2 >= total:
+        return hints
+    plain = []
+    for name, path in frontends:
+        if name in bases:
+            plain.extend({**c, "repo": name} for c in find_api_calls.scan(path))
+        else:
+            plain.extend(c for c in calls if c["repo"] == name)
+    alternative = _matched_calls(match(plain, routes, rules))
+    if alternative > _matched_calls(result):
+        applied = ", ".join(f"{n}={b}" for n, b in bases.items())
+        hints.append(f"HINT without the base URL ({applied}) {alternative} of {total} calls would match, against {_matched_calls(result)} with it: "
+                     f"the backend may serve without that prefix. Try --base-url NAME=none")
+    return hints
 
 
 def resolve_bases(frontends: list[tuple[str, Path]], explicit) -> tuple[dict, list[str]]:

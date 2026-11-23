@@ -20,6 +20,7 @@ from pathlib import Path
 
 import django_routes
 import find_entry_points
+import laravel_routes
 import rails_routes
 from find_entry_points import SKIP_DIRS
 
@@ -81,6 +82,12 @@ def resolve_spring(repo, hits, all_hits, cache):
         prefix = max(same_file, key=lambda p: p["line"])["groups"][0] if same_file else ""
         out.append(Route(verb_of(verb), join_path(prefix, path), h["file"], h["line"], "spring", action))
     return out
+
+
+def resolve_spring_method(repo, hits, all_hits, cache):
+    """Method-level @RequestMapping(path=..., method=...): groups arrive as (path, verb, method); reuse the Spring logic."""
+    reordered = [{**h, "groups": [h["groups"][1], h["groups"][0], h["groups"][2]]} for h in hits]
+    return resolve_spring(repo, reordered, all_hits, cache)
 
 
 CLASS_RE = re.compile(r"\bclass\s+(\w+)")
@@ -231,11 +238,17 @@ def resolve_rails_repo(repo, cache):
             for r in rails_routes.collect(repo, read)]
 
 
+def resolve_laravel_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "laravel", r["view"], r["known"])
+            for r in laravel_routes.collect(repo, read)]
+
+
 # resolvers that read whole route files of a repo (keyed by the framework names the entry-point scan uses)
-REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo}
+REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo, "laravel": resolve_laravel_repo}
 
 RESOLVERS = {
-    "spring": resolve_spring, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,
+    "spring": resolve_spring, "spring-method": resolve_spring_method, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,
     "express": resolve_express, "nestjs": resolve_nestjs, "fastapi-flask": resolve_python,
 }
 ROUTE_FRAMEWORK_ALIASES = {"fastapi": "fastapi-flask", "flask": "fastapi-flask"}

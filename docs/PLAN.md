@@ -119,7 +119,7 @@ docs/PLAN.md                    ← this file
 - [x] Public test repos checked and documented: `docs/TEST-REPOS.md` (RealWorld frontends/backends, FastAPI template)
 - [ ] Backend route coverage and the remaining stacks: tracked in Phase 7 below
 
-## Phase 7 – Backend route coverage (tracker)
+## Phase 7 – Backend route coverage (tracker) – 7.0 to 7.3 done, 7.4 mostly
 Status key: `[ ]` not started, `[~]` in progress, `[x]` done. Update this list in the same commit as the work.
 
 Test material: `docs/TEST-REPOS.md` (RealWorld frontends and backends; cloned read-only under the session scratchpad).
@@ -131,8 +131,8 @@ full path (`/api/articles/{slug}/favorite`), and the Angular frontend should mat
 | 7.0 | Frontend base URL: `--base-url NAME=/api`, plus detection of axios `baseURL` and Angular interceptors that prepend one | Angular RealWorld calls become `/api/...`; without it, fixing backend prefixes (7.1-7.3) would stop them matching | [x] done: detected `/api` in the Angular interceptor; `--base-url` override |
 | 7.1 | Django: `path`/`re_path`/`url` patterns, nested `include()` prefixes, regex and `<int:id>` converters to parameters | django-realworld: about 19 routes, full paths, no "prefix unknown" | [x] done: 16 route entries (`/admin` plus 15 API entries; an `ANY` entry stands for several methods), all with full paths and known prefixes; Angular matches 13 of 13, none `likely`. Methods derived from DRF mixins and `def` actions |
 | 7.2 | Rails: `resources`/`resource` (with `only`/`except`), `namespace`, `scope`, nested, `member`/`collection`, verb lines | rails-realworld: about 19 routes, full paths, Angular match no longer loose (no spray of `likely`) | [x] done: 22 route entries (PUT and PATCH listed separately), all with full paths; Angular matches 18 of 18, none `likely` (was 6 exact + 25 loose). Also fixed in the call finder: calls split over lines (`this.http` newline `.post<T>(...)`) and `'/a/' + x + '/b'` URLs, which had hidden 5 of the 18 Angular calls |
-| 7.3 | Laravel: automatic `/api` prefix of `routes/api.php`, `Route::prefix()->group()`, `Route::group(['prefix'])`, `resource`/`apiResource` | laravel-realworld: about 19 routes, full paths, Angular match all exact | [ ] |
-| 7.4 | Re-run the Angular frontend against all five RealWorld backends and record the results in `docs/TEST-REPOS.md` | all five at 13 of 13 exact (or documented reason) | [ ] |
+| 7.3 | Laravel: automatic `/api` prefix of `routes/api.php`, `Route::prefix()->group()`, `Route::group(['prefix'])`, `resource`/`apiResource` | laravel-realworld: about 19 routes, full paths, Angular match all exact | [x] done: 22 routes with the `/api` prefix from `RouteServiceProvider`; Angular 18 of 18 exact |
+| 7.4 | Re-run the Angular frontend against all five RealWorld backends and record the results in `docs/TEST-REPOS.md` | all five at 18 of 18 (the frontend has 18 calls, not 13: 5 were hidden by line-split chains until fixed) exact, or a documented reason | [~] 4 of 5: Django, Rails, Laravel exact; Spring exact with `--base-url web=none` (default run prints a HINT); Express all `likely` until 7.6. Results in `docs/TEST-REPOS.md` |
 | 7.5 | FastAPI `include_router` prefixes; generated TypeScript clients (`{ url: '...' }`) | fastapi template: items/login/users routes with `/api/v1` prefix; frontend calls found | [ ] |
 | 7.6 | Express multi-level `router.use`; frontend wrapper services (`ApiService.get('articles')`) | node-express-realworld: no "prefix unknown"; Vue app calls found | [ ] |
 | 7.7 | GraphQL (operation names) and gRPC (`.proto` services) | design note first, then a small demo pair | [ ] |

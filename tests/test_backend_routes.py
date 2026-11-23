@@ -213,3 +213,83 @@ def test_formatter_style_chains_and_concatenated_urls(tmp_path):
     got = [(c["methods"], c["url"], c["optional_suffix"]) for c in find_api_calls.scan(tmp_path)]
     assert got == [(["POST"], "/profiles/{}/follow", False), (["GET"], "/profiles/{}", False),
                    (["PUT"], "/articles/{}", False), (["GET"], "/items", True)]
+
+
+# ---- 7.3 Laravel --------------------------------------------------------------
+
+def laravel_repo(tmp_path, api_php, provider=None, bootstrap=None, web_php=None):
+    write(tmp_path, "routes/api.php", "<?php\n" + api_php)
+    if web_php is not None:
+        write(tmp_path, "routes/web.php", "<?php\n" + web_php)
+    if provider:
+        write(tmp_path, "app/Providers/RouteServiceProvider.php", provider)
+    if bootstrap:
+        write(tmp_path, "bootstrap/app.php", bootstrap)
+    return routes_of(tmp_path)
+
+
+def test_laravel_api_prefix_groups_match_and_resources(tmp_path):
+    got = laravel_repo(
+        tmp_path,
+        "// Route::get('ghost', 'X@y');\n"
+        "Route::group(['namespace' => 'Api'], function () {\n"
+        "    Route::post('users/login', 'AuthController@login');\n"
+        "    Route::match(['put', 'patch'], 'user', 'UserController@update');\n"
+        "    Route::get('profiles/{user}', 'ProfileController@show');\n"
+        "    Route::get('maybe/{opt?}', 'M@show');\n"
+        "    Route::resource('articles', 'ArticleController', ['except' => ['create', 'edit']]);\n"
+        "    Route::resource('articles/{article}/comments', 'CommentController', ['only' => ['index', 'store', 'destroy']]);\n"
+        "});\n"
+        "Route::prefix('v2')->middleware('auth:api')->group(function () {\n"
+        "    Route::apiResource('orders', OrderController::class)->only(['index', 'show']);\n"
+        "    Route::group(['prefix' => 'admin'], function () {\n"
+        "        Route::delete('users/{id}', 'U@destroy');\n"
+        "    });\n"
+        "});\n"
+        "Route::any('webhook', 'W@run');\n",
+        provider="Route::prefix('api')->middleware('api')->group(base_path('routes/api.php'));\n")
+    keys = set(got)
+    assert {("POST", "/api/users/login"), ("PUT", "/api/user"), ("PATCH", "/api/user"), ("GET", "/api/profiles/{user}"),
+            ("GET", "/api/maybe/{opt}"), (None, "/api/webhook")} <= keys
+    assert {("GET", "/api/articles"), ("POST", "/api/articles"), ("GET", "/api/articles/{article}"), ("PUT", "/api/articles/{article}"),
+            ("DELETE", "/api/articles/{article}")} <= keys
+    assert ("GET", "/api/articles/create") not in keys and ("GET", "/api/articles/{article}/edit") not in keys
+    assert {("GET", "/api/articles/{article}/comments"), ("POST", "/api/articles/{article}/comments"),
+            ("DELETE", "/api/articles/{article}/comments/{comment}")} <= keys
+    assert {("GET", "/api/v2/orders"), ("GET", "/api/v2/orders/{order}")} <= keys and ("POST", "/api/v2/orders") not in keys  # apiResource ->only
+    assert ("DELETE", "/api/v2/admin/users/{id}") in keys           # nested groups add up
+    assert not any("ghost" in p for _m, p in keys)                  # commented-out route
+
+
+def test_laravel_prefix_sources_provider_bootstrap_and_defaults(tmp_path):
+    assert ("GET", "/api/ping") in laravel_repo(tmp_path / "default", "Route::get('ping', 'P@x');\n")                      # Laravel's default
+    custom = laravel_repo(tmp_path / "provider", "Route::get('ping', 'P@x');\n",
+                          provider="Route::prefix('rest/v1')->group(base_path('routes/api.php'));\n")
+    assert ("GET", "/rest/v1/ping") in custom
+    laravel11 = laravel_repo(tmp_path / "l11", "Route::get('ping', 'P@x');\n",
+                             bootstrap="->withRouting(web: __DIR__.'/../routes/web.php', api: __DIR__.'/../routes/api.php', apiPrefix: 'service')\n",
+                             web_php="Route::get('home', 'H@x');\n")
+    assert ("GET", "/service/ping") in laravel11 and ("GET", "/home") in laravel11
+
+
+# ---- 7.4 report hint and Spring method-level RequestMapping -------------------------
+
+def test_spring_method_level_request_mapping_with_a_verb_attribute(tmp_path):
+    write(tmp_path, "UsersApi.java",
+          '@RestController\n@RequestMapping(path = "/accounts")\npublic class UsersApi {\n'
+          '  @RequestMapping(path = "/login", method = POST)\n  public ResponseEntity login() {}\n'
+          '  @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)\n  public void remove() {}\n}\n')
+    assert {("POST", "/accounts/login"), ("DELETE", "/accounts/{id}")} <= set(routes_of(tmp_path))
+
+
+def test_a_base_url_that_hides_every_match_is_diagnosed(tmp_path):
+    write(tmp_path, "fe/src/http.interceptor.ts", "intercept(req) { return next(req.clone({ url: `/api${req.url}` })); }\n")
+    write(tmp_path, "fe/src/s.ts", "this.http.get('/items');\nthis.http.post('/items', {});\nthis.http.get('/items/' + id);\n")
+    write(tmp_path, "be/ItemsController.cs",
+          '[Route("items")]\npublic class ItemsController : ControllerBase\n{\n  [HttpGet]\n  public IActionResult All() { }\n'
+          '  [HttpPost]\n  public IActionResult Add() { }\n  [HttpGet("{id}")]\n  public IActionResult One(int id) { }\n}\n')
+    result = match_api.run([("web", tmp_path / "fe")], [("api", tmp_path / "be")])
+    assert result["matches"] == []
+    assert any("HINT" in n and "3 of 3 calls would match" in n for n in result["notes"])
+    ok = match_api.run([("web", tmp_path / "fe")], [("api", tmp_path / "be")], bases={"web": ""})
+    assert len({m["call"]["line"] for m in ok["matches"]}) == 3 and not any("HINT" in n for n in ok["notes"])

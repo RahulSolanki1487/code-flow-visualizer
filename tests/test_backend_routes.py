@@ -120,3 +120,96 @@ def test_django_regex_to_path():
     assert f(r"^users/login/?$") == "users/login" and f("api/") == "api" and f(r"^$") == ""
     assert f("<int:pk>/detail/") == "{pk}/detail" and f(r"^v(\d+)/ping$") == "v{}/ping"
     assert f(r"^zoom/AZ$") == "zoom/AZ"  # a trailing capital Z is part of the path, not an anchor
+
+
+# ---- 7.2 Rails --------------------------------------------------------------
+
+def rails_routes(tmp_path, body, api_only=False):
+    write(tmp_path, "config/routes.rb", "Rails.application.routes.draw do\n" + body + "end\n")
+    if api_only:
+        write(tmp_path, "config/application.rb", "config.api_only = true\n")
+    return routes_of(tmp_path)
+
+
+def test_rails_resources_only_except_param_and_nesting(tmp_path):
+    got = rails_routes(tmp_path,
+                       "  scope :api, defaults: { format: :json } do\n"
+                       "    resources :articles, param: :slug, except: [:edit, :new] do\n"
+                       "      resource :favorite, only: [:create, :destroy]\n"
+                       "      resources :comments, only: [:create, :index, :destroy]\n"
+                       "      get :feed, on: :collection\n"
+                       "      post :publish, on: :member\n"
+                       "    end\n"
+                       "    resources :tags, only: [:index]\n"
+                       "  end\n")
+    keys = set(got)
+    assert {("GET", "/api/articles"), ("POST", "/api/articles"), ("GET", "/api/articles/{slug}"), ("PUT", "/api/articles/{slug}"),
+            ("PATCH", "/api/articles/{slug}"), ("DELETE", "/api/articles/{slug}")} <= keys
+    assert ("GET", "/api/articles/new") not in keys and ("GET", "/api/articles/{slug}/edit") not in keys
+    assert {("POST", "/api/articles/{article_slug}/favorite"), ("DELETE", "/api/articles/{article_slug}/favorite"),
+            ("GET", "/api/articles/{article_slug}/comments"), ("POST", "/api/articles/{article_slug}/comments"),
+            ("DELETE", "/api/articles/{article_slug}/comments/{id}")} <= keys
+    assert ("GET", "/api/articles/feed") in keys and ("POST", "/api/articles/{slug}/publish") in keys
+    assert ("GET", "/api/tags") in keys and ("POST", "/api/tags") not in keys
+
+
+def test_rails_singular_resource_namespace_verbs_root_mount_and_match(tmp_path):
+    got = rails_routes(tmp_path,
+                       "  root 'home#index'\n"
+                       "  namespace :admin do\n"
+                       "    namespace :v2 do\n"
+                       "      resource :profile, only: [:show, :update]\n"
+                       "    end\n"
+                       "  end\n"
+                       "  get '/health', to: 'health#show'\n"
+                       "  post 'login' => 'sessions#create'\n"
+                       "  match 'hook', to: 'hooks#run', via: [:get, :post]\n"
+                       "  mount Sidekiq::Web => '/sidekiq'\n"
+                       "  resources :photos, :albums, only: :index\n")
+    keys = set(got)
+    assert {("GET", "/"), ("GET", "/admin/v2/profile"), ("PUT", "/admin/v2/profile"), ("PATCH", "/admin/v2/profile"),
+            ("GET", "/health"), ("POST", "/login"), ("GET", "/hook"), ("POST", "/hook"), (None, "/sidekiq"),
+            ("GET", "/photos"), ("GET", "/albums")} <= keys
+    assert ("GET", "/admin/v2/profile/new") not in keys   # only: [:show, :update]
+
+
+def test_rails_api_only_apps_have_no_new_and_edit_routes(tmp_path):
+    plain = rails_routes(tmp_path / "plain", "  resources :orders\n")
+    api = rails_routes(tmp_path / "api", "  resources :orders\n", api_only=True)
+    assert ("GET", "/orders/new") in plain and ("GET", "/orders/{id}/edit") in plain
+    assert ("GET", "/orders/new") not in api and ("GET", "/orders/{id}/edit") not in api and ("GET", "/orders") in api
+
+
+def test_rails_ruby_blocks_comments_and_continuations_do_not_unbalance_nesting(tmp_path):
+    got = rails_routes(tmp_path,
+                       "  # resources :ghosts\n"
+                       "  if Rails.env.development?\n"
+                       "    resources :dev_tools, only: :index\n"
+                       "  end\n"
+                       "  resources :users,\n"
+                       "            only: [:index, :show] do   # trailing comment\n"
+                       "    resources :posts, only: :index\n"
+                       "  end\n"
+                       "  resources :after, only: :index\n")
+    keys = set(got)
+    assert ("GET", "/dev_tools") in keys and ("GET", "/users/{user_id}/posts") in keys
+    assert ("GET", "/after") in keys and ("GET", "/ghosts") not in keys   # `after` is at top level, not nested
+
+
+def test_rails_devise_for_adds_assumed_session_routes(tmp_path):
+    got = rails_routes(tmp_path, "  scope :api do\n    devise_for :users, path_names: { sign_in: :login }\n  end\n")
+    assert {("POST", "/api/users/login"), ("DELETE", "/api/users/sign_out"), ("POST", "/api/users")} <= set(got)
+    assert "assumed" in got[("POST", "/api/users/login")].action
+
+
+# ---- call finder fixes found with the RealWorld Angular app --------------------
+
+def test_formatter_style_chains_and_concatenated_urls(tmp_path):
+    write(tmp_path, "src/profile.service.ts",
+          "follow(username: string) {\n  return this.http\n    .post<{ profile: Profile }>('/profiles/' + username + '/follow', {})\n}\n"
+          "get(username: string) {\n  return this.http.get('/profiles/' + username);\n}\n"
+          "put(slug: string) {\n  return this.http\n    .put<{ article: A }>(`/articles/${slug}`, {});\n}\n"
+          "all() {\n  return this.http.get('/items' + (id ? '/' + id : ''));\n}\n")
+    got = [(c["methods"], c["url"], c["optional_suffix"]) for c in find_api_calls.scan(tmp_path)]
+    assert got == [(["POST"], "/profiles/{}/follow", False), (["GET"], "/profiles/{}", False),
+                   (["PUT"], "/articles/{}", False), (["GET"], "/items", True)]

@@ -20,6 +20,7 @@ from pathlib import Path
 
 import django_routes
 import find_entry_points
+import rails_routes
 from find_entry_points import SKIP_DIRS
 
 VERBS = {"get", "post", "put", "patch", "delete", "head", "options"}
@@ -224,8 +225,14 @@ def resolve_django_repo(repo, cache):
             for r in django_routes.collect(repo, read)]
 
 
+def resolve_rails_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "rails", r["view"], r["known"])
+            for r in rails_routes.collect(repo, read)]
+
+
 # resolvers that read whole route files of a repo (keyed by the framework names the entry-point scan uses)
-REPO_RESOLVERS = {"django": resolve_django_repo}
+REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo}
 
 RESOLVERS = {
     "spring": resolve_spring, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,

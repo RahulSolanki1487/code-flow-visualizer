@@ -58,6 +58,8 @@ Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
 The matcher detects a base URL that the frontend adds outside its call sites (axios `baseURL`, an Angular interceptor) and says so in a
 `NOTE`; override it with `--base-url web=api` or turn it off with `--base-url web=none`. If a `HINT` says more calls would match without
 it, the backend serves without that prefix.
+Calls made through a wrapper object (`ApiService.get('articles', slug)`) are detected and noted; `--wrapper NAME` names one the detection
+missed and `--wrapper none` turns detection off.
 
 If a gateway or reverse proxy sits between them (the frontend calls `/orders-svc/api/v1/orders`, the service
 serves `/api/v1/orders`), tell the matcher how URLs are rewritten, or those calls stay unmatched:

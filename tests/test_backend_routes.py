@@ -366,3 +366,111 @@ def test_generated_client_urls_in_option_objects(tmp_path):
           "const r = client.post({ url: '/api/v1/login', body });\n")
     got = [(c["methods"], c["url"]) for c in find_api_calls.scan(tmp_path)]
     assert got == [(["GET"], "/api/v1/items"), (["DELETE"], "/api/v1/items/{id}"), (["POST"], "/api/v1/login")]
+
+
+# ---- 7.6 Express router graph --------------------------------------------------------
+
+def express_project(tmp_path):
+    write(tmp_path, "src/main.ts",
+          "import express from 'express';\nimport routes from './app/routes/routes';\n"
+          "const app = express();\napp.use(cors());\napp.use(routes);\n"
+          "app.get('/', (req, res) => res.json({ docs: 'http://example.com/docs' })); // see http://x.y\n")
+    write(tmp_path, "src/app/routes/routes.ts",
+          "import { Router } from 'express';\nimport tags from './tag/tag.controller';\nimport { articles } from './article/article.controller';\n"
+          "import users = require('./user/user.controller');\n"
+          "const api = Router()\n  .use(tags)\n  .use('/content', articles)\n  .use(require('./misc'));\n\n"
+          "export default Router().use('/api', api);\n")
+    write(tmp_path, "src/app/routes/tag/tag.controller.ts", "import { Router } from 'express';\nconst router = Router();\nrouter.get('/tags', h);\nexport default router;\n")
+    write(tmp_path, "src/app/routes/article/article.controller.ts",
+          "import { Router } from 'express';\nexport const articles = Router();\n"
+          "articles.route('/articles/:slug')\n  .get(h)\n  .put(auth, h)\n  .delete(h);\n"
+          "// articles.get('/ghost', h);\n")
+    write(tmp_path, "src/app/routes/misc.js", "const router = require('express').Router();\nrouter.all('/ping', h);\nmodule.exports = router;\n")
+    write(tmp_path, "src/orphan.ts", "import { Router } from 'express';\nconst lonely = Router();\nlonely.get('/lonely', h);\n")
+    return tmp_path
+
+
+def test_express_chained_use_anonymous_default_export_and_route_chains(tmp_path):
+    got = routes_of(express_project(tmp_path))
+    keys = {k for k, v in got.items() if v.prefix_known}
+    assert keys == {
+        ("GET", "/"),                                   # a route on the app itself
+        ("GET", "/api/tags"),                           # app.use(routes) -> Router().use('/api', api) -> .use(tags)
+        ("GET", "/api/content/articles/:slug"), ("PUT", "/api/content/articles/:slug"), ("DELETE", "/api/content/articles/:slug"),  # named import, route().get().put().delete()
+        (None, "/api/ping"),                            # .use(require('./misc')) and router.all
+    }
+    assert ("GET", "/api/content/ghost") not in set(got)      # commented-out route
+
+
+def test_express_unmounted_router_has_an_unknown_prefix(tmp_path):
+    got = routes_of(express_project(tmp_path))
+    assert got[("GET", "/lonely")].prefix_known is False
+
+
+def test_express_url_in_a_string_is_not_mistaken_for_a_comment(tmp_path):
+    write(tmp_path, "app.js", "const app = require('express')();\napp.get('/docs', (q, r) => r.redirect('http://example.com/a//b'));\napp.get('/after', h);\n")
+    assert {("GET", "/docs"), ("GET", "/after")} <= set(routes_of(tmp_path))
+
+
+# ---- 7.6 frontend wrapper services ----------------------------------------------------
+
+VUE_WRAPPER = (
+    "async function request(method, path, body) {\n  const response = await fetch(`${API_URL}/${path}`, { method });\n  return { data: await response.json() };\n}\n"
+    "const ApiService = {\n"
+    "  query(resource, config) { return request('GET', resource); },\n"
+    "  get(resource, slug = '') { return request('GET', slug ? `${resource}/${slug}` : resource); },\n"
+    "  post(resource, params) { return request('POST', resource, params); },\n"
+    "  update(resource, slug, params) { return request('PUT', `${resource}/${slug}`, params); },\n"
+    "  delete(resource) { return request('DELETE', resource); }\n"
+    "};\nexport default ApiService;\n"
+    "export const ArticlesService = {\n  get(slug) { return ApiService.get('articles', slug); },\n  create(params) { return ApiService.post('articles', { article: params }); },\n"
+    "  update(slug, params) { return ApiService.update('articles', slug, { article: params }); },\n"
+    "  destroy(slug) { return ApiService.delete(`articles/${slug}`); }\n};\n"
+    "export const CommentsService = {\n  get(slug) { return ApiService.get('articles', `${slug}/comments`); }\n};\n")
+
+
+def test_wrapper_is_detected_by_its_resource_first_parameter_not_by_verb_names(tmp_path):
+    write(tmp_path, "src/api.service.js", VUE_WRAPPER)
+    assert [w["name"] for w in find_api_calls.detect_wrappers(tmp_path)] == ["ApiService"]   # ArticlesService.get(slug) is a domain service
+
+
+def test_wrapper_calls_become_urls_with_segments_and_verbs(tmp_path):
+    write(tmp_path, "src/api.service.js", VUE_WRAPPER)
+    write(tmp_path, "src/store.js",
+          "ApiService.post('users/login', { user });\nApiService.get('user');\nApiService.put('user', { user });\n"
+          "ApiService.get('profiles', username);\nApiService.query('articles' + (type === 'feed' ? '/feed' : ''), { params });\n"
+          "ApiService.update('articles', slug, params);\nApiService.delete(`profiles/${username}/follow`);\n")
+    got = {(tuple(c["methods"]), c["url"]) for c in find_api_calls.scan(tmp_path) if c["file"] == "src/store.js"}
+    assert got == {(("POST",), "/users/login"), (("GET",), "/user"), (("PUT",), "/user"), (("GET",), "/profiles/{}"),
+                   (("GET",), "/articles"), (("PUT",), "/articles/{}"), (("DELETE",), "/profiles/{}/follow")}
+    inside = {(tuple(c["methods"]), c["url"]) for c in find_api_calls.scan(tmp_path) if c["file"] == "src/api.service.js"}
+    assert (("GET",), "/articles/{}") in inside and (("GET",), "/articles/{}/comments") in inside    # ApiService.get('articles', `${slug}/comments`)
+    assert not any(u in ("/", "/{}") for _m, u in inside | got)       # the wrapper's own fetch(`${API_URL}/${path}`) says nothing
+
+
+def test_wrappers_can_be_switched_off_or_named(tmp_path):
+    write(tmp_path, "src/api.service.js", VUE_WRAPPER)
+    write(tmp_path, "src/store.js", "ApiService.post('users/login', { user });\nHttpGateway.get('ping');\n")
+    assert not [c for c in find_api_calls.scan(tmp_path, wrappers=[]) if c["file"] == "src/store.js"]
+    named = [c["url"] for c in find_api_calls.scan(tmp_path, wrappers=["HttpGateway"]) if c["file"] == "src/store.js"]
+    assert named == ["/ping"]
+
+
+def test_api_url_constants_with_fallbacks_give_a_base_url(tmp_path):
+    write(tmp_path, "src/config.js", 'export const API_URL =\n  import.meta.env.VITE_API_URL || "https://api.example.com/api";\n')
+    write(tmp_path, "src/env.ts", "export const environment = { apiUrl: 'http://localhost:5000/v2' };\n")
+    bases = sorted(d["base"] for d in find_api_calls.detect_base_urls(tmp_path))
+    assert bases == ["/api", "/v2"]
+
+
+def test_run_reports_the_detected_wrapper_and_matches_through_it(tmp_path):
+    write(tmp_path, "fe/src/api.service.js", VUE_WRAPPER)
+    write(tmp_path, "fe/src/store.js", "ApiService.get('tags');\nApiService.get('articles', slug);\n")
+    write(tmp_path, "be/ArticlesController.cs",
+          '[Route("articles")]\npublic class ArticlesController : ControllerBase\n{\n  [HttpGet("{slug}")]\n  public IActionResult One(string slug) { }\n}\n'
+          '[Route("tags")]\npublic class TagsController : ControllerBase\n{\n  [HttpGet]\n  public IActionResult All() { }\n}\n')
+    result = match_api.run([("web", tmp_path / "fe")], [("api", tmp_path / "be")])
+    assert any("HTTP wrapper ApiService detected" in n for n in result["notes"])
+    assert {m["call"]["url"] for m in result["matches"]} == {"/tags", "/articles/{}"}
+    off = match_api.run([("web", tmp_path / "fe")], [("api", tmp_path / "be")], wrappers=[])
+    assert off["matches"] == []

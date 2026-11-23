@@ -54,8 +54,9 @@ routes nobody calls. Flows can then cite files from both repos (`"repo": "web"` 
 validated with `--repo web=../web-app --repo api=../api`. Supported so far: calls via `fetch`, `axios`,
 Angular `HttpClient`, Dart `http`/`dio`; routes for Spring, ASP.NET (controllers and minimal APIs with
 `MapGroup`), Django (`urls.py`, `include()`, DRF routers), Rails (`routes.rb` DSL), Laravel (`routes/*.php`, groups, resources),
-Express, NestJS, FastAPI/Flask (other stacks are matched with an unknown prefix, so only as `likely`). A base URL added by an
-HTTP interceptor or axios `baseURL` is detected (`--base-url web=none` turns it off); the report says when dropping it would match more.
+Express (router graphs), FastAPI/Flask (router graphs), NestJS (other stacks are matched with an unknown prefix, so only as `likely`). A base URL added by an
+HTTP interceptor, axios `baseURL` or an `API_URL` constant is detected (`--base-url web=none` turns it off); the report says when dropping it
+would match more. Calls through a wrapper object (`ApiService.get('articles', slug)`) and generated TypeScript clients are read too (`--wrapper NAME|none`).
 
 Behind a gateway, add `--gateway-config nginx.conf` (nginx or Ocelot JSON) or `--gateway-prefix orders=orders-svc`
 so a call to `/orders-svc/api/v1/orders` is matched to the service's `/api/v1/orders`

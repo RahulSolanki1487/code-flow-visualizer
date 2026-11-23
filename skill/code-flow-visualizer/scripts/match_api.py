@@ -138,12 +138,15 @@ def parse_repo_args(values: list[str]) -> list[tuple[str, Path]]:
     return out
 
 
-def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rules=(), bases=None) -> dict:
-    """`bases`: {frontend name: base path}. None means: detect (axios baseURL, interceptors) and use it when unambiguous."""
+def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rules=(), bases=None, wrappers=None) -> dict:
+    """`bases`: {frontend name: base path}; None means detect (axios baseURL, interceptors, API_URL constants) and use it
+    when unambiguous. `wrappers`: names of HTTP wrapper objects (`ApiService`); None detects them, [] reads none."""
     bases, notes = resolve_bases(frontends, bases)
+    wrapper_names, wrapper_notes = resolve_wrappers(frontends, wrappers)
+    notes += wrapper_notes
     calls = []
     for name, path in frontends:
-        for c in find_api_calls.scan(path, base=bases.get(name)):
+        for c in find_api_calls.scan(path, base=bases.get(name), wrappers=wrapper_names[name]):
             calls.append({**c, "repo": name})
     routes = []
     for name, path in backends:
@@ -151,7 +154,7 @@ def run(frontends: list[tuple[str, Path]], backends: list[tuple[str, Path]], rul
             r.repo = name
             routes.append(r)
     result = match(calls, routes, rules)
-    result["notes"] = notes + _base_url_hints(frontends, bases, calls, routes, rules, result)
+    result["notes"] = notes + _base_url_hints(frontends, bases, calls, routes, rules, result, wrapper_names)
     return result
 
 
@@ -159,7 +162,7 @@ def _matched_calls(result: dict) -> int:
     return len({(m["call"]["repo"], m["call"]["file"], m["call"]["line"], m["call"]["url"]) for m in result["matches"]})
 
 
-def _base_url_hints(frontends, bases, calls, routes, rules, result) -> list[str]:
+def _base_url_hints(frontends, bases, calls, routes, rules, result, wrapper_names) -> list[str]:
     """When an applied base URL leaves most calls unmatched but dropping it matches more, say so."""
     hints = []
     total = len(calls)
@@ -168,7 +171,7 @@ def _base_url_hints(frontends, bases, calls, routes, rules, result) -> list[str]
     plain = []
     for name, path in frontends:
         if name in bases:
-            plain.extend({**c, "repo": name} for c in find_api_calls.scan(path))
+            plain.extend({**c, "repo": name} for c in find_api_calls.scan(path, wrappers=wrapper_names[name]))
         else:
             plain.extend(c for c in calls if c["repo"] == name)
     alternative = _matched_calls(match(plain, routes, rules))
@@ -177,6 +180,21 @@ def _base_url_hints(frontends, bases, calls, routes, rules, result) -> list[str]
         hints.append(f"HINT without the base URL ({applied}) {alternative} of {total} calls would match, against {_matched_calls(result)} with it: "
                      f"the backend may serve without that prefix. Try --base-url NAME=none")
     return hints
+
+
+def resolve_wrappers(frontends: list[tuple[str, Path]], explicit) -> tuple[dict, list[str]]:
+    """{frontend name: wrapper names to read} plus notes. `explicit` None detects, a list (possibly empty) is used as given."""
+    names, notes = {}, []
+    for name, path in frontends:
+        if explicit is not None:
+            names[name] = list(explicit)
+            continue
+        found = find_api_calls.detect_wrappers(path)
+        names[name] = [w["name"] for w in found]
+        for w in found:
+            notes.append(f"{name}: HTTP wrapper {w['name']} detected at {w['file']}:{w['line']}; calls like {w['name']}.get('articles', slug) "
+                         f"are read as GET /articles/{{}} (--wrapper none to disable, --wrapper NAME to choose)")
+    return names, notes
 
 
 def resolve_bases(frontends: list[tuple[str, Path]], explicit) -> tuple[dict, list[str]]:
@@ -208,9 +226,18 @@ def add_gateway_arguments(ap: argparse.ArgumentParser) -> None:
 
 def add_matching_arguments(ap: argparse.ArgumentParser) -> None:
     add_gateway_arguments(ap)
+    ap.add_argument("--wrapper", action="append", metavar="NAME",
+                    help="HTTP wrapper object the frontend calls instead of fetch/axios (e.g. ApiService); 'none' disables detection")
     ap.add_argument("--base-url", action="append", metavar="FRONTEND=base",
                     help="base path the frontend prepends to its calls (api, no leading slash in Git Bash); "
                          "'none' disables detection. Without it a single axios baseURL / interceptor base is detected")
+
+
+def build_wrappers(args) -> list | None:
+    """--wrapper ApiService (repeatable) -> ['ApiService']; --wrapper none -> []; not given -> None (detect)."""
+    if not args.wrapper:
+        return None
+    return [] if any(w.lower() == "none" for w in args.wrapper) else list(args.wrapper)
 
 
 def build_bases(args) -> dict | None:
@@ -269,7 +296,7 @@ def main(argv=None) -> int:
     add_matching_arguments(ap)
     args = ap.parse_args(argv)
     frontends, backends = parse_repo_args(args.frontend), parse_repo_args(args.backend)
-    result = run(frontends, backends, build_rules(args, backends), build_bases(args))
+    result = run(frontends, backends, build_rules(args, backends), build_bases(args), build_wrappers(args))
     if args.json:
         print(json.dumps(result, indent=2))
     else:

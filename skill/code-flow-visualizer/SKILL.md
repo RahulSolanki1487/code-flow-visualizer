@@ -96,12 +96,16 @@ Write `flow.json` following `references/flow-schema.md`. Rules:
 - Node `type` ∈ `entry, logic, data, external, decision, error, ui, event`.
 - Keep labels short (≤ 40 chars); put detail in `description`.
 - **Write `plain_summary` for every flow**: the "In plain words" box at the top of the page, for a non-technical reader such as a manager.
-  2-5 sentences, 60-700 characters, everyday words: who does what, what the normal outcome is, what can go wrong and what the person
-  then sees. No file, class, function, URL or HTTP-verb names, no code, no jargon ("middleware", "endpoint", "payload").
-  Bad: "The controller calls OrderService.placeOrder, which reserves stock via inventoryRepo and returns 201."
-  Good: "A customer places an order. The system checks they are signed in, makes sure every item is in stock, charges their card and
-  confirms the order. If anything fails, the order is stopped and the customer is told why."
-  The validator warns when it is missing or reads technical (`scripts/plain_language.py` is the rule). Keep `summary` for the technical version.
+  Tell the story of the flow in simple sentences, from the first step to the last, **naming every step of the diagram exactly as the
+  diagram labels it** (`auth middleware`, `POST /products`, `All items available?`) so the reader can match each sentence to a box.
+  Include the branches and failures (what happens when a check says no) and what the person finally sees.
+  Everything around the step names is plain language: no file paths, code syntax or other identifiers, no jargon. The page turns each
+  step name into a link to that step. Do not change the diagram labels to make the text easier.
+  Bad (general): "The system validates the request and saves the order, returning an error on failure."
+  Good (names the steps): "A customer places an order by sending POST /api/orders. First the auth middleware checks they are signed in;
+  if not, the order stops with 401 Unauthorized. Otherwise ... All items available? If not, the customer gets 409 Out of stock ..."
+  The validator warns when it is missing, leaves a step out (it names the missing ones) or contains other code
+  (`scripts/plain_language.py` is the rule). Long flows may have a longer text (about 70 characters per step). Keep `summary` for the technical version.
 - More than ~40 nodes → prefer scoping the flow down. If it must stay large, run `python scripts/split_flow.py flow.json -o flow.json` (splits flowchart/state flows into linked sub-flows; sequence flows are not split) or split by hand with `"link_to": "<flow_id>"`.
 
 ### 5. Validate

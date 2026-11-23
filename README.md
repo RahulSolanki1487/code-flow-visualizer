@@ -15,7 +15,7 @@ Ask Claude things like:
 
 ## What you get
 
-- **"In plain words" box** at the top of every page: a short, jargon-free description of the whole flow that a manager can read, written by Claude and checked by the validator (no code names, paths or URLs).
+- **"In plain words" box** at the top of every page: the flow told in simple sentences that name every step exactly as the diagram labels it (`auth middleware`, `POST /products`), so a manager can match each sentence to a box; each name links to its step. Written by Claude and checked by the validator (every step mentioned, no other code).
 - **Interactive diagram** (Mermaid, zoom and pan, dark mode). Click a node to jump to its step.
 - **Step-by-step walkthrough**: what happens, why it matters, the real code snippet and its `file:line`, with an "Open in VS Code" link.
 - **Error paths as first-class steps**, and a clear marker for hops that are *inferred* (dependency injection, event buses, proxies) with the reason.

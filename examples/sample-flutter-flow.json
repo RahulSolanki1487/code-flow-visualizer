@@ -9,7 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "A global go_router redirect sends signed-out users to /login and signed-in users away from it. Signing in goes to the home list, tapping an item pushes the detail screen, and the floating button signs out.",
-      "plain_summary": "When the app opens, people who are not signed in are taken to the sign-in screen, and people who are signed in see the home list. Signing in with a valid account shows the list, where tapping an item opens its detail screen. A password that is too short shows an error. A button on the home screen signs the person out and returns them to sign-in.",
+      "plain_summary": "On App launch the app asks Signed in? If the person is not signed in they see the Login screen, where AuthRepository.signIn checks their details; if the details are rejected, Show auth error appears and they can try again. If they are signed in, or sign in successfully, they reach the Home list. Tapping an item opens Item detail. Pressing the button for Sign out takes them back to the Login screen.",
       "entry": "launch",
       "nodes": [
         { "id": "launch", "label": "App launch", "type": "ui", "file": "lib/router.dart", "line": 7,

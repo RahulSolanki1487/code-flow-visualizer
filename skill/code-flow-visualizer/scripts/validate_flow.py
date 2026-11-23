@@ -67,7 +67,7 @@ def validate(data: dict, repo=None):
         for key in ("id", "title", "mode", "summary", "entry", "nodes", "edges"):
             if key not in f:
                 errors.append(f"{p}: missing '{key}'")
-        plain = plain_language.problems(f.get("plain_summary"))
+        plain = plain_language.problems(f.get("plain_summary"), plain_language.step_labels(f))
         if plain == ["missing"]:
             warnings.append(f"{p}: no 'plain_summary' (the 'In plain words' box for non-technical readers)")
         elif plain:

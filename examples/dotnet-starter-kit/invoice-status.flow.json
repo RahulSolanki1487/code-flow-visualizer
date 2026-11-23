@@ -9,7 +9,7 @@
       "diagram": "state",
       "direction": "LR",
       "summary": "An invoice starts as Draft, is Issued to the customer, then ends as Paid or Void. Void is allowed from Draft or Issued but never from Paid. MarkPaid and Void are idempotent when repeated.",
-      "plain_summary": "An invoice moves through a few simple stages. It starts as a draft, is issued to the customer, and ends when it is either paid or cancelled. A draft or an issued invoice can be cancelled, but once an invoice is paid it can no longer be cancelled. Repeating a payment or a cancellation on an invoice that is already paid or cancelled changes nothing.",
+      "plain_summary": "An invoice starts as Draft. When it is sent to the customer it becomes Issued, and once the customer has paid it becomes Paid. A Draft or Issued invoice can also be cancelled, which makes it Void. A Paid invoice cannot be cancelled: trying to do so ends in Paid cannot be voided. Repeating a payment or a cancellation that has already happened changes nothing.",
       "entry": "draft",
       "nodes": [
         { "id": "draft", "label": "Draft", "type": "logic", "file": "src/Modules/Billing/Modules.Billing/Domain/Invoice.cs", "line": 55,

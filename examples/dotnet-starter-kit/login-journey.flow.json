@@ -9,7 +9,7 @@
       "diagram": "flowchart",
       "direction": "TD",
       "summary": "A visitor hitting a protected page waits for a silent token refresh, is redirected to /login if there is no session, signs in (with an optional 2FA code step) and is sent back to the page they came from.",
-      "plain_summary": "Someone opens a page in the dashboard. While the system quietly checks whether they are already signed in, a loading indicator shows. If they are not signed in they are sent to the sign-in page, where they enter their email, password and organisation, plus a verification code if their account requires one. After signing in they land on the page they originally wanted. Wrong details show an error and they can try again.",
+      "plain_summary": "Someone starts at Open protected page. While Restoring session? is answered, the dashboard shows a loading indicator. Then Authenticated? decides: a signed-in visitor goes straight to the Requested page. Anyone else is sent to the Login page, whose login() API call sends their details to the server. If the server says 2FA required? the person must complete Enter 2FA code; any other rejection leads to Show login error, and they can try again. After a successful sign-in they are taken Back to origin page, the page they first wanted.",
       "entry": "visit",
       "nodes": [
         { "id": "visit", "label": "Open protected page", "type": "ui", "file": "clients/dashboard/src/routes.tsx", "line": 170,

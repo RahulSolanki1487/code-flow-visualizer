@@ -26,9 +26,10 @@ TEST_MARKERS = (".test.", ".spec.", "__tests__", "/test/", "/tests/", "_test.dar
 
 # <callee>(  with an optional TypeScript generic:  apiFetch<Foo>(  /  this.http.post<{a: string}>(
 CALL_RE = re.compile(
-    r"""(?<![\w.$])((?:this\.|self\.)?(?:fetch|apiFetch|axios(?:\.(?:get|post|put|patch|delete|request))?|"""
-    r"""\$http(?:\.\w+)?|(?:http|httpClient|client|api|dio|ky)(?:\.(?:get|post|put|patch|delete|head|request))?|"""
-    r"""\w*[hH]ttp\w*\.(?:get|post|put|patch|delete))|request)"""
+    # `\s*\.\s*` between receiver and verb: formatters put `this.http` and `.post<T>(...)` on separate lines
+    r"""(?<![\w.$])((?:this\.|self\.)?(?:fetch|apiFetch|axios(?:\s*\.\s*(?:get|post|put|patch|delete|request))?|"""
+    r"""\$http(?:\s*\.\s*\w+)?|(?:http|httpClient|client|api|dio|ky)(?:\s*\.\s*(?:get|post|put|patch|delete|head|request))?|"""
+    r"""\w*[hH]ttp\w*\s*\.\s*(?:get|post|put|patch|delete))|request)"""
     r"""\s*(?:<[^()]*?>)?\s*\(\s*""")
 METHOD_PROP_RE = re.compile(r"""\bmethod\s*:\s*([^,}\n]+)""", re.I)
 QUOTED_VERB_RE = re.compile(r"""['"`](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)['"`]""", re.I)
@@ -67,6 +68,55 @@ def read_string_literal(text: str, i: int):
     return None, j, dynamic
 
 
+def skip_operand(text: str, k: int) -> int:
+    """End index of one non-literal operand starting at k: `id`, `a.b.c`, `fn(x)`, `x[0]`, `(cond ? a : b)`."""
+    if k < len(text) and text[k] == "(":
+        return k + len(call_arguments(text, k + 1)) + 2
+    m = re.compile(r"[\w.$?!]+").match(text, k)
+    if not m:
+        return k
+    end = m.end()
+    while end < len(text) and text[end] in "([":
+        close = {"(": ")", "[": "]"}[text[end]]
+        inner = call_arguments(text, end + 1)
+        end += len(inner) + 2
+        if end > len(text) or text[end - 1] != close:
+            break
+    return end
+
+
+def read_concatenation(text: str, j: int, url: str):
+    """Continue a URL built with `+` after its first literal. Returns (url, end, dynamic, optional_suffix)."""
+    dynamic = optional = False
+    pos = j
+    while True:
+        plus = PLUS_RE.match(text, pos)
+        if not plus:
+            break
+        k = plus.end()
+        while k < len(text) and text[k].isspace():
+            k += 1
+        if k < len(text) and text[k] in STRING_START:
+            literal, end, literal_dynamic = read_string_literal(text, k)
+            if literal is None:
+                break
+            url, dynamic, pos = url + literal, dynamic or literal_dynamic, end
+            continue
+        end = skip_operand(text, k)
+        if end == k:
+            break
+        dynamic, pos = True, end
+        if PLUS_RE.match(text, end):
+            url += "{}"                      # more follows: this operand is a segment (or part of one)
+            continue
+        if url.endswith("/") and len(url) > 1:
+            url += "{}"                      # '/profiles/' + username
+        else:
+            optional = True                  # '/items' + (...): may or may not extend the path
+        break
+    return url, pos, dynamic, optional
+
+
 def read_url_argument(text: str, i: int):
     """Parse the first call argument. Returns (url|None, end, dynamic, base_unknown, optional_suffix)."""
     for wrapper in ("Uri.parse(", "Uri.https(", "new URL(", "Uri.http("):
@@ -89,9 +139,10 @@ def read_url_argument(text: str, i: int):
     optional_suffix = False
     if "?" in url:  # the query string is not part of the route; drop it before judging the path
         url = url.split("?", 1)[0]
-    # concatenation: '/v1/items' + (item.id ? '/' + item.id : '') -> the path may or may not continue
-    if PLUS_RE.match(text, j):
-        dynamic = optional_suffix = True
+    # concatenation: '/profiles/' + name + '/follow' -> /profiles/{}/follow;
+    # a trailing operand after a path without a final slash may or may not extend it: '/v1/items' + (id ? '/' + id : '')
+    url, j, concat_dynamic, optional_suffix = read_concatenation(text, j, url)
+    dynamic = dynamic or concat_dynamic
     # a variable glued to the end of a segment (`/audits${query}`) is usually a query string
     if url.endswith("{}") and not url.endswith("/{}") and len(url) > 2:
         url, dynamic, optional_suffix = url[:-2], True, True
@@ -174,7 +225,7 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
             continue  # a definition such as `export async function apiFetch<T>(`, not a call
         start_line = text.count("\n", 0, m.start()) + 1
         url, _end, dynamic, base_unknown, optional_suffix = read_url_argument(text, m.end())
-        callee = m.group(1)
+        callee = re.sub(r"\s+", "", m.group(1))
         args = call_arguments(text, m.end())
         base = {"file": rel, "line": start_line, "callee": callee, "methods": methods_for(callee, args)}
         if url is None:
@@ -188,7 +239,60 @@ def find_calls_in_text(text: str, rel: str) -> list[dict]:
     return calls
 
 
-def scan(repo: Path, limit: int = 2000) -> list[dict]:
+BASE_URL_PATTERNS = (
+    # axios.create({ baseURL: 'https://host/api' }) / axios.defaults.baseURL = '/api'
+    re.compile(r"""baseURL\s*[:=]\s*(['"`])([^'"`$]+)\1"""),
+    # Angular / fetch interceptors: req.clone({ url: `https://host/api${req.url}` })
+    re.compile(r"""\burl\s*:\s*`([^`$]*)\$\{\s*req(?:uest)?\.url\s*\}`"""),
+)
+
+
+def detect_base_urls(repo: Path) -> list[dict]:
+    """Base paths a frontend prepends to its calls outside the call sites (axios baseURL, interceptors).
+
+    Returns [{"base": "/api", "file": ..., "line": ...}] with scheme and host removed; hosts alone are ignored.
+    """
+    found = []
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        for name in sorted(files):
+            path = Path(root) / name
+            if path.suffix.lower() not in EXTENSIONS or any(m in "/" + path.relative_to(repo).as_posix() for m in TEST_MARKERS):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if "baseURL" not in text and "req.url" not in text and "request.url" not in text:
+                continue
+            for pattern in BASE_URL_PATTERNS:
+                for m in pattern.finditer(text):
+                    raw = m.group(m.lastindex if pattern is BASE_URL_PATTERNS[0] else 1)
+                    base = SCHEME_RE.sub("", raw).rstrip("/")
+                    if base.startswith("/") and len(base) > 1:
+                        found.append({"base": base, "file": path.relative_to(repo).as_posix(),
+                                      "line": text.count("\n", 0, m.start()) + 1})
+    return found
+
+
+def apply_base_url(calls: list[dict], base: str) -> list[dict]:
+    """Prefix internal call URLs with `base` (skipping calls that already start with it)."""
+    base = "/" + base.strip("/")
+    out = []
+    for c in calls:
+        url = c.get("url")
+        if url and url.startswith("/") and not (url == base or url.startswith(base + "/")):
+            c = {**c, "url": base + (url if url != "/" else ""), "base_applied": base}
+        out.append(c)
+    return out
+
+
+def scan(repo: Path, limit: int = 2000, base: str | None = None) -> list[dict]:
+    calls = _scan_files(repo, limit)
+    return apply_base_url(calls, base) if base else calls
+
+
+def _scan_files(repo: Path, limit: int) -> list[dict]:
     out = []
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]

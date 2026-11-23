@@ -26,22 +26,21 @@ python skill/code-flow-visualizer/scripts/match_api.py \
   --frontend web=../angular-realworld-example-app --backend api=../spring-boot-realworld-example-app
 ```
 
-## What to expect today (checked 2026-11-22)
+## What to expect today (checked 2026-11-22, after Phase 7.1-7.3)
 
-The Angular app adds its base URL in an HTTP interceptor (`https://api.realworld.show/api` + the call's path), so
-its calls look like `/articles` and `/users/login`. The scan cannot see an interceptor, and several backends also
-show their routes without `/api`, so those pairs line up because both sides omit the prefix, not because a prefix
-was resolved.
+The Angular RealWorld app adds its base URL in an HTTP interceptor (`https://api.realworld.show/api` + the call's path).
+The tool detects that (`/api`) and applies it, so the frontend's 18 calls look like `/api/articles/{}`. The report prints a
+`NOTE` saying where the base came from; `--base-url web=none` turns it off.
 
-Angular frontend (13 calls) against each backend:
+Angular frontend (18 calls) against each backend:
 
-| Backend | Result | Why |
-|---|---|---|
-| Spring Boot | 11 of 13 calls matched, mostly exact | class `@RequestMapping` prefixes resolved (`/articles/{slug}`); no `/api` on either side |
-| Express | 13 of 13 matched | 19 of its 20 routes show "prefix unknown" (controllers are composed through `router.use(...)`), but they line up with the Angular paths |
-| Laravel | 12 of 13 matched, several only `likely` | `routes/api.php` gets an automatic `/api` prefix and `Route::group` prefixes are not resolved yet |
-| Rails | 12 calls matched, but 25 `likely` matches: too loose | `resources :articles` is not expanded into its routes yet |
-| Django | 0 routes found | `url(r'^...')` patterns and `include()` prefixes are not parsed yet |
+| Backend | Routes found | Calls matched | Notes |
+|---|---|---|---|
+| Django | 16 entries | 18 of 18, all exact | `url()` patterns, nested `include()`, DRF router (methods from mixins and `def` actions, `lookup_field`) |
+| Rails | 22 | 18 of 18, all exact | `scope :api`, `resources ... param: :slug, except: [...]`, nested resources, `get :feed, on: :collection`, `devise_for` (approximated) |
+| Laravel | 22 | 18 of 18, all exact | `/api` prefix from `RouteServiceProvider`, `Route::group`, `Route::match`, `Route::resource` options and nesting |
+| Spring Boot | 19 | 18 of 18, all exact with `--base-url web=none` | the Spring app serves `/articles` without `/api`; by default the report says so instead of showing 0 matches: `HINT without the base URL (web=/api) 15 of 18 calls would match ...` |
+| Express | 20 | 18 of 18 but all `likely` | controllers are composed through several levels of `router.use(...)`, so their prefix is unknown (Phase 7.6) |
 
 Frontends: the Angular app works well. The Vue app routes every call through an `ApiService.get('articles', slug)` wrapper
 that takes a resource name, which is not recognised yet. The FastAPI template's React client is generated
@@ -63,13 +62,14 @@ because the frontend URL and the backend route differ by the gateway prefix. Wit
 `/shipping-svc/...` call is reported as having no backend (there is no shipping service in the demo).
 Write `--gateway-prefix` values without a leading slash: Git Bash rewrites `/x` into a Windows path.
 
-## Known gaps these repos exposed (to build next)
+## Known gaps these repos exposed (still open)
 
-0. Base URLs added by an HTTP interceptor or client setup (Angular `HttpInterceptor`, axios `baseURL`) are invisible to the call scan.
-1. Django: `url()`/`re_path` regex patterns and nested `include()` prefixes.
-2. Rails: `resources`/`resource`, `namespace`, `scope`, nested and member routes.
-3. Laravel: the automatic `/api` prefix of `routes/api.php`, `Route::prefix()->group()` and `Route::group(['prefix' => ...])`.
-4. FastAPI: prefixes from `include_router(router, prefix=...)`; generated TypeScript clients that pass `{ url: '...' }`.
-5. Express: routers composed through several levels of `router.use(...)`.
-6. Frontend wrapper services that take a resource name (`ApiService.get('articles', slug)`).
-7. Not started: GraphQL (one endpoint, operation names) and gRPC (`.proto` services).
+1. FastAPI: prefixes from `include_router(router, prefix=...)`; generated TypeScript clients that pass `{ url: '...' }` (Phase 7.5).
+2. Express: routers composed through several levels of `router.use(...)` (Phase 7.6).
+3. Frontend wrapper services that take a resource name (`ApiService.get('articles', slug)`) (Phase 7.6).
+4. GraphQL (one endpoint, operation names) and gRPC (`.proto` services) (Phase 7.7).
+5. Django function views and `@api_view` decorators are matched by path only (method `ANY`); Rails `concerns`, `draw(...)` of other files and conditionals are not followed.
+
+Fixed since the first version of this guide: Django, Rails and Laravel route parsing, base URLs added by interceptors / axios `baseURL`,
+calls split over several lines (`this.http` newline `.post<T>(...)`), `'/a/' + x + '/b'` URLs, and Spring method-level
+`@RequestMapping(path = ..., method = POST)`.

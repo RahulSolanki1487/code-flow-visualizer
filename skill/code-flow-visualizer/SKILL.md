@@ -20,7 +20,7 @@ a file list and notes on anything uncertain.
 
 ## Core principle
 
-**Analysis and rendering are separate.** You (Claude) analyse code and write
+**Analysis and rendering are separate.** You (the AI assistant) analyse code and write
 `flow.json`. Scripts validate it and render the HTML. Never hand-write the HTML page.
 
 ## Workflow

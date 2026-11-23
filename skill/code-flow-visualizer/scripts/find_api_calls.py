@@ -91,7 +91,11 @@ def read_url_argument(text: str, i: int):
         url = url.split("?", 1)[0]
     # concatenation: '/v1/items' + (item.id ? '/' + item.id : '') -> the path may or may not continue
     if PLUS_RE.match(text, j):
-        dynamic = optional_suffix = True
+        dynamic = True
+        if url.endswith("/") and len(url) > 1:
+            url += "{}"            # '/profiles/' + username: a segment definitely follows
+        else:
+            optional_suffix = True  # '/items' + (id ? '/' + id : ''): it may or may not
     # a variable glued to the end of a segment (`/audits${query}`) is usually a query string
     if url.endswith("{}") and not url.endswith("/{}") and len(url) > 2:
         url, dynamic, optional_suffix = url[:-2], True, True

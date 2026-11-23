@@ -56,3 +56,67 @@ def test_several_different_bases_are_reported_not_applied(tmp_path):
     write(tmp_path, "fe/src/b.ts", "axios.create({ baseURL: '/admin' });\n")
     bases, notes = match_api.resolve_bases([("web", tmp_path / "fe")], None)
     assert bases == {} and "several base URLs" in notes[0]
+
+
+# ---- 7.1 Django -------------------------------------------------------------
+
+def django_project(tmp_path):
+    write(tmp_path, "proj/settings.py", "ROOT_URLCONF = 'proj.urls'\n")
+    write(tmp_path, "proj/urls.py",
+          '"""Examples in a docstring must be ignored:\n    url(r\'^ghost/$\', views.home)\n"""\n'
+          "from django.urls import path, include\n"
+          "urlpatterns = [\n"
+          "    # path('commented/', views.nope),\n"
+          "    path('admin/', admin.site.urls),\n"
+          "    path('api/v1/', include('shop.urls')),\n"
+          "    path('api/', include(('billing.urls', 'billing'), namespace='billing')),\n"
+          "]\n")
+    write(tmp_path, "shop/urls.py",
+          "from django.urls import path, re_path, include\n"
+          "from rest_framework.routers import DefaultRouter\n"
+          "router = DefaultRouter()\n"
+          "router.register(r'products', ProductViewSet)\n"
+          "router.register('tags', TagViewSet)\n"
+          "urlpatterns = [\n"
+          "    path('', include(router.urls)),\n"
+          "    path('orders/<int:pk>/', OrderView.as_view()),\n"
+          "    path('orders/<slug:code>/items/', OrderItemsView.as_view()),\n"
+          "    re_path(r'^search/(?P<term>\\w+)/?$', search),\n"
+          "]\n")
+    write(tmp_path, "shop/views.py",
+          "class ProductViewSet(viewsets.ModelViewSet):\n    lookup_field = 'sku'\n\n"
+          "class TagViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,\n                 viewsets.GenericViewSet):\n    pass\n")
+    write(tmp_path, "billing/urls.py", "urlpatterns = [\n    path('invoices/', InvoiceList.as_view()),\n]\n")
+    return tmp_path
+
+
+def test_django_includes_routers_converters_and_regex(tmp_path):
+    got = routes_of(django_project(tmp_path))
+    paths = {p for _m, p in got}
+    assert {"/admin", "/api/v1/orders/{pk}", "/api/v1/orders/{code}/items", "/api/v1/search/{term}", "/api/invoices"} <= paths
+    assert ("GET", "/api/v1/products") in got and ("POST", "/api/v1/products") in got           # ModelViewSet
+    assert {m for m, p in got if p == "/api/v1/products/{sku}"} == {"GET", "PUT", "PATCH", "DELETE"}   # lookup_field
+    assert {m for m, p in got if p == "/api/v1/tags/{pk}"} == {"GET"}                           # read-only mixins
+    assert ("POST", "/api/v1/tags") not in got
+    assert all(r.prefix_known for r in got.values())
+
+
+def test_django_ignores_docstring_examples_and_comments(tmp_path):
+    paths = {p for _m, p in routes_of(django_project(tmp_path))}
+    assert "/ghost" not in paths and "/commented" not in paths and "/" not in paths
+
+
+def test_django_unreferenced_urls_files_get_an_unknown_prefix(tmp_path):
+    write(tmp_path, "a/urls.py", "urlpatterns = [\n    path('x/', X.as_view()),\n]\n")
+    write(tmp_path, "b/urls.py", "urlpatterns = [\n    path('y/', Y.as_view()),\n]\n")
+    got = routes_of(tmp_path)
+    assert not got[(None, "/x")].prefix_known and not got[(None, "/y")].prefix_known
+
+
+def test_django_regex_to_path():
+    import django_routes
+    f = django_routes.regex_to_path
+    assert f(r"^articles/(?P<slug>[-\w]+)/favorite/?$") == "articles/{slug}/favorite"
+    assert f(r"^users/login/?$") == "users/login" and f("api/") == "api" and f(r"^$") == ""
+    assert f("<int:pk>/detail/") == "{pk}/detail" and f(r"^v(\d+)/ping$") == "v{}/ping"
+    assert f(r"^zoom/AZ$") == "zoom/AZ"  # a trailing capital Z is part of the path, not an anchor

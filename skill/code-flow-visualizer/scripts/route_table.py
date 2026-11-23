@@ -18,6 +18,7 @@ import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+import django_routes
 import find_entry_points
 from find_entry_points import SKIP_DIRS
 
@@ -217,6 +218,15 @@ def resolve_default(repo, hits, all_hits, cache):
     return out
 
 
+def resolve_django_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "django", r["view"], r["known"])
+            for r in django_routes.collect(repo, read)]
+
+
+# resolvers that read whole route files of a repo (keyed by the framework names the entry-point scan uses)
+REPO_RESOLVERS = {"django": resolve_django_repo}
+
 RESOLVERS = {
     "spring": resolve_spring, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,
     "express": resolve_express, "nestjs": resolve_nestjs, "fastapi-flask": resolve_python,
@@ -233,7 +243,11 @@ def collect_routes(repo: Path, limit: int = 100000) -> list[Route]:
     cache: dict = {}
     routes: list[Route] = []
     for fw, fw_hits in by_fw.items():
+        if fw in REPO_RESOLVERS:
+            continue  # these frameworks are resolved from whole route files, not from single entry-point hits
         routes.extend(RESOLVERS.get(fw, resolve_default)(repo, fw_hits, hits, cache))
+    for resolver in REPO_RESOLVERS.values():
+        routes.extend(resolver(repo, cache))
     return routes
 
 

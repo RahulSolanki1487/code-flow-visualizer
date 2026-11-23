@@ -43,7 +43,7 @@ def test_typescript_generics_and_angular_http(tmp_path):
                   "apiFetch<Foo[]>(`/api/v1/x/${id}?${qs}`);\n"
                   "this.http.post<{ token: string }>('/api/login', { email });\n"
                   "axios.delete('/api/v1/y/' + id);\n")
-    assert [(c["methods"], c["url"]) for c in found] == [(["GET"], "/api/v1/x/{}"), (["POST"], "/api/login"), (["DELETE"], "/api/v1/y")]
+    assert [(c["methods"], c["url"]) for c in found] == [(["GET"], "/api/v1/x/{}"), (["POST"], "/api/login"), (["DELETE"], "/api/v1/y/{}")]
 
 
 def test_constants_are_inlined_including_chained_ones(tmp_path):

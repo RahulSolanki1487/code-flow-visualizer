@@ -112,3 +112,17 @@ def test_unquoted_colon_in_description_is_caught(tmp_path):
     (ok / "SKILL.md").write_text("---\nname: ok-skill\ndescription: >-\n  Has a colon: here\n  and wraps.\n---\nBody\n", encoding="utf-8")
     assert skill_files.check_skill(ok) == []
     assert skill_files.read_frontmatter(ok / "SKILL.md")["description"] == "Has a colon: here and wraps."
+
+
+def test_committed_marketplace_copy_matches_the_skill():
+    """The plugin served by `/plugin marketplace add` is a generated copy; fail when skill/ changed and it was not regenerated."""
+    import sync_marketplace
+    assert sync_marketplace.differences() == [], "run: python tools/sync_marketplace.py"
+
+
+def test_marketplace_points_at_the_committed_plugin_and_current_version():
+    import sync_marketplace
+    manifest = sync_marketplace.marketplace_manifest()
+    entry = manifest["plugins"][0]
+    assert (skill_files.ROOT / entry["source"] / ".claude-plugin" / "plugin.json").is_file()
+    assert entry["version"] == skill_files.version()

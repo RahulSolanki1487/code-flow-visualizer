@@ -58,6 +58,9 @@ Give every node a `"repo": "web"` / `"repo": "api"` field and validate with
 The matcher detects a base URL that the frontend adds outside its call sites (axios `baseURL`, an Angular interceptor) and says so in a
 `NOTE`; override it with `--base-url web=api` or turn it off with `--base-url web=none`. If a `HINT` says more calls would match without
 it, the backend serves without that prefix.
+GraphQL operations and gRPC calls are matched through the same report: a GraphQL field shows as `QUERY /graphql/launches`
+(method `QUERY`/`MUTATION`/`SUBSCRIPTION`), an rpc as `POST /<package>.<Service>/<Method>`, and the route points at the resolver or
+implementation. Fields marked `@client` are local state and are not calls.
 Calls made through a wrapper object (`ApiService.get('articles', slug)`) are detected and noted; `--wrapper NAME` names one the detection
 missed and `--wrapper none` turns detection off.
 

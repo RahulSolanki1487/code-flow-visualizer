@@ -47,6 +47,19 @@ Frontend (18 calls each) against each backend: **every pair matches 18 of 18, al
 FastAPI full-stack template (React + FastAPI in one repo): 23 routes, all under `/api/v1` (`app.include_router(api_router, prefix=settings.API_V1_STR)`
 resolved through three files and a constant in `config.py`); the generated TypeScript client's 23 calls are found and all match.
 
+## GraphQL and gRPC
+
+| Stack | Repo | Result |
+|---|---|---|
+| GraphQL, Apollo Server + React client | https://github.com/apollographql/fullstack-tutorial (use `final/server` and `final/client`) | server: 6 fields (`launches`, `launch`, `me`, `bookTrips`, `cancelTrip`, `login`) located at their resolvers; client: 9 operations, of which 2 are `@client` local-state fields (not sent to the server); the 7 server calls all match exactly |
+| gRPC-Web, `.proto` + Node server + browser client | https://github.com/grpc/grpc-web, folder `net/grpc/gateway/examples/helloworld` | `SayHello` and `SayRepeatHello` match as `POST /helloworld.Greeter/<Method>`; pass the folder as both `--frontend` and `--backend` |
+
+```bash
+python skill/code-flow-visualizer/scripts/match_api.py   --frontend web=fullstack-tutorial/final/client --backend api=fullstack-tutorial/final/server
+```
+A GraphQL operation is shown as method `QUERY` / `MUTATION` / `SUBSCRIPTION` and url `<endpoint>/<rootField>` (endpoint `/graphql` unless the
+client `uri` or server config says otherwise); an rpc is `POST /<package>.<Service>/<Method>`.
+
 ## Gateway demo (in this repo)
 
 `examples/cross-repo-gateway/`: an Angular frontend, an Express orders service, a Spring billing service and an
@@ -65,7 +78,7 @@ Write `--gateway-prefix` values without a leading slash: Git Bash rewrites `/x` 
 
 ## Known gaps (still open)
 
-1. GraphQL (one endpoint, operation names) and gRPC (`.proto` services) (Phase 7.7).
+1. GraphQL: Apollo `@client` fields are skipped, but other client-only directives and schema stitching / federation are not understood; persisted queries and operations built from strings at runtime are not read. gRPC: services implemented only through reflection or dynamic registration are reported at their `.proto` line.
 2. Django function views and `@api_view` decorators are matched by path only (method `ANY`); Rails `concerns`, `draw(...)` of other files and conditionals are not followed.
 3. Wrappers are recognised when their methods take the resource/url as first parameter (`get(resource, slug)`); wrappers with other shapes need `--wrapper NAME`.
 4. Express routers registered through loops, factories or `app.use(path, require(...)())` are not followed.

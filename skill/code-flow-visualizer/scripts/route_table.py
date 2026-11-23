@@ -21,6 +21,8 @@ from pathlib import Path
 import django_routes
 import express_routes
 import find_entry_points
+import graphql_routes
+import grpc_routes
 import laravel_routes
 import python_web_routes
 import rails_routes
@@ -209,9 +211,22 @@ def resolve_laravel_repo(repo, cache):
             for r in laravel_routes.collect(repo, read)]
 
 
+def resolve_graphql_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "graphql", r["view"], r["known"])
+            for r in graphql_routes.collect(repo, read)]
+
+
+def resolve_grpc_repo(repo, cache):
+    read = lambda rel: read_text(repo, rel, cache)  # noqa: E731
+    return [Route(r["method"], r["path"], r["file"], r["line"], "grpc", r["view"], r["known"])
+            for r in grpc_routes.collect(repo, read)]
+
+
 # resolvers that read whole route files of a repo (keyed by the framework names the entry-point scan uses)
 REPO_RESOLVERS = {"django": resolve_django_repo, "rails": resolve_rails_repo, "laravel": resolve_laravel_repo,
-                  "fastapi-flask": resolve_python_repo, "express": resolve_express_repo}
+                  "fastapi-flask": resolve_python_repo, "express": resolve_express_repo,
+                  "graphql": resolve_graphql_repo, "grpc": resolve_grpc_repo}
 
 RESOLVERS = {
     "spring": resolve_spring, "spring-method": resolve_spring_method, "aspnet": resolve_aspnet, "aspnet-minimal": resolve_aspnet_minimal,

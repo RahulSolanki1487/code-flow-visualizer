@@ -18,9 +18,11 @@ import re
 import sys
 from pathlib import Path
 
+import graphql_calls
+import grpc_calls
 from find_entry_points import SKIP_DIRS
 
-EXTENSIONS = {".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mjs", ".dart"}
+EXTENSIONS = {".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mjs", ".dart", ".graphql", ".gql"}
 VERBS = ("get", "post", "put", "patch", "delete", "head", "options")
 TEST_MARKERS = (".test.", ".spec.", "__tests__", "/test/", "/tests/", "_test.dart")
 
@@ -231,7 +233,9 @@ def url_from_options(args: str):
     return (url, dynamic) if url is not None else None
 
 
-def find_calls_in_text(text: str, rel: str, wrapper_names=()) -> list[dict]:
+def find_calls_in_text(text: str, rel: str, wrapper_names=(), graphql_endpoint: str = "/graphql", grpc_packages=None) -> list[dict]:
+    if rel.endswith((".graphql", ".gql")):
+        return graphql_calls.find(text, rel, graphql_endpoint)
     text = substitute_constants(text)
     calls = []
     for m in PAREN_CALL_RE.finditer(text):
@@ -265,6 +269,8 @@ def find_calls_in_text(text: str, rel: str, wrapper_names=()) -> list[dict]:
     if wrapper_names:
         seen = {(c["line"], c["url"]) for c in calls}
         calls.extend(c for c in find_wrapper_calls(text, rel, wrapper_names) if (c["line"], c["url"]) not in seen)
+    calls.extend(graphql_calls.find(text, rel, graphql_endpoint))
+    calls.extend(grpc_calls.find(text, rel, grpc_packages or {}))
     return calls
 
 
@@ -414,14 +420,42 @@ def find_wrapper_calls(text: str, rel: str, names) -> list[dict]:
     return calls
 
 
+def detect_graphql_endpoint(repo: Path) -> str:
+    """Endpoint path of the GraphQL client in this repo (from `uri:`/`url:` of the client constructor), else /graphql."""
+    def texts():
+        for root, dirs, files in os.walk(repo):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+            for name in files:
+                if Path(name).suffix.lower() in {".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mjs"}:
+                    try:
+                        yield (Path(root) / name).read_text(encoding="utf-8", errors="ignore")
+                    except OSError:
+                        continue
+    return graphql_calls.detect_endpoint(texts())
+
+
+def detect_grpc_packages(repo: Path) -> dict:
+    """{service: package} from the frontend repo's own .proto files and generated gRPC-Web code."""
+    def files():
+        for root, dirs, names in os.walk(repo):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+            for n in names:
+                if n.endswith((".proto", "_grpc_web_pb.js", "ServiceClientPb.ts", "_connect.js", "_connect.ts")):
+                    try:
+                        yield (Path(root) / n).relative_to(repo).as_posix(), (Path(root) / n).read_text(encoding="utf-8", errors="ignore")
+                    except OSError:
+                        continue
+    return grpc_calls.detect_packages(files())
+
+
 def scan(repo: Path, limit: int = 2000, base: str | None = None, wrappers=None) -> list[dict]:
     """`wrappers`: names of HTTP wrapper objects to read (`ApiService`); None detects them, [] reads none."""
     names = [w["name"] for w in detect_wrappers(repo)] if wrappers is None else list(wrappers)
-    calls = _scan_files(repo, limit, names)
+    calls = _scan_files(repo, limit, names, detect_graphql_endpoint(repo), detect_grpc_packages(repo))
     return apply_base_url(calls, base) if base else calls
 
 
-def _scan_files(repo: Path, limit: int, wrapper_names=()) -> list[dict]:
+def _scan_files(repo: Path, limit: int, wrapper_names=(), graphql_endpoint: str = "/graphql", grpc_packages=None) -> list[dict]:
     out = []
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
@@ -438,7 +472,7 @@ def _scan_files(repo: Path, limit: int, wrapper_names=()) -> list[dict]:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            out.extend(find_calls_in_text(text, rel, wrapper_names))
+            out.extend(find_calls_in_text(text, rel, wrapper_names, graphql_endpoint, grpc_packages))
             if len(out) >= limit:
                 return out[:limit]
     return out

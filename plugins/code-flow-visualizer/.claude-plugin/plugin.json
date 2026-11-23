@@ -1,0 +1,9 @@
+{
+  "name": "code-flow-visualizer",
+  "version": "0.5.0",
+  "description": "Trace how code runs and render it as an interactive HTML flow page. Bundles: code-flow-visualizer",
+  "author": {
+    "name": "RahulSolanki1487"
+  },
+  "license": "MIT"
+}

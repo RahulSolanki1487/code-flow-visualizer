@@ -117,9 +117,27 @@ docs/PLAN.md                    ← this file
 - [x] Stitcher `stitch_flows.py`: `link_to` on the call-site node and `callers` on the backend entry node, likely matches marked inferred, report of calls without a flow/route, ambiguous matches and uncalled backend flows. Tried on Demo.MultiDb (Angular + .NET) and the sample apps; `examples/cross-repo/`
 - [x] Gateway support: `--gateway-config` (nginx.conf, Ocelot JSON) and `--gateway-prefix`; demo in `examples/cross-repo-gateway/`. Earlier claim that `likely` covers gateway prefixes was wrong: a prefix on top of known routes matched nothing before this
 - [x] Public test repos checked and documented: `docs/TEST-REPOS.md` (RealWorld frontends/backends, FastAPI template)
-- [ ] Django `url()`/`include()` prefixes; Rails `resources`/`namespace` DSL; Laravel `api.php` prefix and route groups
-- [ ] FastAPI `include_router` prefixes and generated TypeScript clients; Express multi-level `router.use`; wrapper services (`ApiService.get('articles')`)
-- [ ] GraphQL and gRPC
+- [ ] Backend route coverage and the remaining stacks: tracked in Phase 7 below
+
+## Phase 7 – Backend route coverage (tracker)
+Status key: `[ ]` not started, `[~]` in progress, `[x]` done. Update this list in the same commit as the work.
+
+Test material: `docs/TEST-REPOS.md` (RealWorld frontends and backends; cloned read-only under the session scratchpad).
+The RealWorld API has 19 endpoints, so a correct route table for a RealWorld backend has about that many routes, each with its
+full path (`/api/articles/{slug}/favorite`), and the Angular frontend should match all 13 of its calls exactly.
+
+| # | Item | Acceptance | Status |
+|---|---|---|---|
+| 7.0 | Frontend base URL: `--base-url NAME=/api`, plus detection of axios `baseURL` and Angular interceptors that prepend one | Angular RealWorld calls become `/api/...`; without it, fixing backend prefixes (7.1-7.3) would stop them matching | [ ] |
+| 7.1 | Django: `path`/`re_path`/`url` patterns, nested `include()` prefixes, regex and `<int:id>` converters to parameters | django-realworld: about 19 routes, full paths, no "prefix unknown" | [ ] |
+| 7.2 | Rails: `resources`/`resource` (with `only`/`except`), `namespace`, `scope`, nested, `member`/`collection`, verb lines | rails-realworld: about 19 routes, full paths, Angular match no longer loose (no spray of `likely`) | [ ] |
+| 7.3 | Laravel: automatic `/api` prefix of `routes/api.php`, `Route::prefix()->group()`, `Route::group(['prefix'])`, `resource`/`apiResource` | laravel-realworld: about 19 routes, full paths, Angular match all exact | [ ] |
+| 7.4 | Re-run the Angular frontend against all five RealWorld backends and record the results in `docs/TEST-REPOS.md` | all five at 13 of 13 exact (or documented reason) | [ ] |
+| 7.5 | FastAPI `include_router` prefixes; generated TypeScript clients (`{ url: '...' }`) | fastapi template: items/login/users routes with `/api/v1` prefix; frontend calls found | [ ] |
+| 7.6 | Express multi-level `router.use`; frontend wrapper services (`ApiService.get('articles')`) | node-express-realworld: no "prefix unknown"; Vue app calls found | [ ] |
+| 7.7 | GraphQL (operation names) and gRPC (`.proto` services) | design note first, then a small demo pair | [ ] |
+
+Rule for every item: unit tests with synthetic fixtures, a run on the public repos, and the tracker above updated.
 
 ## Ideas for later
 - Diff mode: highlight which steps changed in a PR

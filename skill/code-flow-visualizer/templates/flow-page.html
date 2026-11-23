@@ -113,9 +113,11 @@
       box.innerHTML = '<div class="p-3 text-danger">Mermaid failed to load (offline?). Mermaid source:</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
       return;
     }
-    const id = 'cfv-svg-' + (++renderSeq);
+    const seq = ++renderSeq;
+    const id = 'cfv-svg-' + seq;
     try {
       const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      if (seq !== renderSeq) return; // a newer flow was selected while this one rendered; drop the stale result
       box.innerHTML = svg;
       if (bindFunctions) bindFunctions(box);
       const el = box.querySelector('svg');
@@ -123,6 +125,7 @@
       if (panZoom) { try { panZoom.destroy(); } catch (e) {} }
       panZoom = window.svgPanZoom ? svgPanZoom(el, { controlIconsEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 10, dblClickZoomEnabled: false }) : null;
     } catch (err) {
+      if (seq !== renderSeq) return;
       box.innerHTML = '<div class="p-3 text-danger">Diagram error: ' + esc(err.message || err) + '</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
     }
   }
@@ -191,6 +194,15 @@
     history.replaceState(null, '', '#' + flow.id);
   }
 
+  // Switch to another flow from anywhere: go back to the Diagram tab first (so the diagram is
+  // rendered into a visible pane), then load that flow's data into every tab.
+  function openFlow(id) {
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show();
+    selectFlow(id);
+    const main = document.querySelector('main'); if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
   window.cfvSelect = function (nodeId) {
     bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
     document.querySelectorAll('.cfv-step').forEach(el => el.classList.remove('cfv-active'));
@@ -202,8 +214,7 @@
 
   document.addEventListener('click', (e) => {
     const s = e.target.closest('[data-step]'); if (s) { e.preventDefault(); cfvSelect(s.dataset.step); return; }
-    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); selectFlow(g.dataset.goto);
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show(); }
+    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); openFlow(g.dataset.goto); }
   });
 
   $('cfv-search').addEventListener('input', (e) => {
@@ -227,7 +238,7 @@
   $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
   $('cfv-flow-list').innerHTML = DATA.flows.map(f =>
     `<a class="list-group-item list-group-item-action" data-flow="${esc(f.id)}" onclick="return false">${esc(f.title)}<div class="small opacity-75">${f.steps.length} steps · ${f.mode === 'user' ? 'user' : 'code'}</div></a>`).join('');
-  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => selectFlow(el.dataset.flow)));
+  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => openFlow(el.dataset.flow)));
   initMermaid();
   selectFlow(location.hash.slice(1));
 })();

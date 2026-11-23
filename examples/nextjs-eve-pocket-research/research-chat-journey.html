@@ -81,7 +81,7 @@
 
 <script type="application/json" id="cfv-data">{"project": "zazencodes-season-3 / eve-pocket-research (Next.js)", "generated_at": "2026-11-22", "flows": [{"id": "research_chat_journey", "title": "Research chat journey (Next.js App Router)", "mode": "user", "summary": "Every request first passes HTTP Basic auth in proxy.ts. The home page lists research items and shows an empty chat. Sending the first message creates a session and silently rewrites the URL to /s/<id>, which can later be reopened to resume the conversation. 'New research' returns to /.", "notes": ["There is no router config or login page: the only 'screens' are / and /s/[sessionId], both rendering AgentChat.", "What the agent does after agent.send (eve runtime, research tools) was not traced; this is the browser-side journey only.", "app/_components/research-list.tsx (the clickable research items on the home page) was not read."], "steps": [{"id": "visit", "label": "Open the app", "type": "ui", "file": "src/eve-pocket-research/proxy.ts", "line": 6, "description": "The proxy runs on every route except eve/, _next/static and _next/image, so the browser first has to satisfy Basic auth.", "snippet": "export function proxy(request: NextRequest) {", "vscode": "", "outgoing": [{"to": "basic_auth", "label": "", "label_to": "Basic auth ok?"}]}, {"id": "basic_auth", "label": "Basic auth ok?", "type": "decision", "file": "src/eve-pocket-research/proxy.ts", "line": 16, "description": "Compares the Authorization header with BASIC_AUTH_USERNAME/PASSWORD from the environment.", "snippet": "const result = verifyHttpBasic(request.headers.get(\"authorization\"), basicAuthCredentials());", "vscode": "", "outgoing": [{"to": "unauthorized", "label": "no", "label_to": "401 + login prompt"}, {"to": "home", "label": "yes", "label_to": "Home: empty chat + research list"}]}, {"id": "unauthorized", "label": "401 + login prompt", "type": "error", "file": "src/eve-pocket-research/proxy.ts", "line": 18, "description": "Without valid credentials the browser shows its native Basic-auth dialog (WWW-Authenticate header, realm 'Pocket Research').", "snippet": "return new NextResponse(\"Authentication required\", {", "vscode": "", "outgoing": [{"to": "basic_auth", "label": "enters credentials", "label_to": "Basic auth ok?"}]}, {"id": "home", "label": "Home: empty chat + research list", "type": "ui", "file": "src/eve-pocket-research/app/page.tsx", "line": 6, "description": "Server component (force-dynamic) that loads research items and renders AgentChat without a sessionId.", "snippet": "const researchItems = await listResearchItems();\n  return <AgentChat researchItems={researchItems} />;", "vscode": "", "outgoing": [{"to": "send", "label": "types a question", "label_to": "User sends a message"}]}, {"id": "send", "label": "User sends a message", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 91, "description": "handleSubmit ignores empty input and input while resuming, then calls agent.send. If a turn is already running the message is sent with the 'steer' policy.", "snippet": "const handleSubmit = async (message: PromptInputMessage) => {", "vscode": "", "outgoing": [{"to": "session_created", "label": "first message", "label_to": "URL becomes /s/<id>"}]}, {"id": "session_created", "label": "URL becomes /s/<id>", "type": "decision", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 52, "description": "On the first session change the URL is rewritten with History.replaceState, not router navigation, because Next's navigation would detach the active stream.", "snippet": "onSessionChange(session) {", "vscode": "", "outgoing": [{"to": "streaming", "label": "URL rewritten", "label_to": "Answer streams in"}]}, {"id": "streaming", "label": "Answer streams in", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 72, "description": "While the status is 'submitted' or 'streaming' the chat shows a thinking indicator and live messages.", "vscode": "", "outgoing": [{"to": "cancel", "label": "clicks stop", "label_to": "User cancels"}, {"to": "turn_error", "label": "fails", "label_to": "Error message shown"}, {"to": "send", "label": "asks follow-up", "label_to": "User sends a message"}, {"to": "resume", "label": "reloads later", "label_to": "Reopen /s/<id>"}, {"to": "new_research", "label": "wants a new topic", "label_to": "Click 'New research'"}]}, {"id": "cancel", "label": "User cancels", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 84, "description": "Calls agent.cancel(). If that fails, the error is shown in the chat.", "snippet": "void agent.cancel().catch((error: unknown) => {", "vscode": "", "outgoing": [{"to": "turn_error", "label": "cancel fails", "label_to": "Error message shown"}]}, {"id": "turn_error", "label": "Error message shown", "type": "error", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 230, "description": "Cancellation errors, agent errors and failed turns are all shown by ErrorMessage.", "snippet": "function ErrorMessage({ message }: { readonly message: string }) {", "vscode": "", "outgoing": []}, {"id": "resume", "label": "Reopen /s/<id>", "type": "ui", "file": "src/eve-pocket-research/app/s/[sessionId]/page.tsx", "line": 3, "description": "The session page passes the id to AgentChat, which resumes the stream from index 0.", "snippet": "return <AgentChat sessionId={sessionId} />;", "vscode": "", "outgoing": [{"to": "streaming", "label": "stream resumes", "label_to": "Answer streams in"}]}, {"id": "new_research", "label": "Click 'New research'", "type": "ui", "file": "src/eve-pocket-research/app/_components/agent-chat.tsx", "line": 258, "description": "A full page load of / (window.location.assign), starting a fresh session.", "snippet": "onClick={() => window.location.assign(\"/\")}", "vscode": "", "outgoing": [{"to": "home", "label": "", "label_to": "Home: empty chat + research list"}]}], "mermaid": "flowchart TD\n  visit(\"Open the app\")\n  basic_auth{\"Basic auth ok?\"}\n  unauthorized{{\"401 + login prompt\"}}\n  home(\"Home: empty chat + research list\")\n  send(\"User sends a message\")\n  session_created{\"URL becomes /s/#lt;id#gt;\"}\n  streaming(\"Answer streams in\")\n  cancel(\"User cancels\")\n  turn_error{{\"Error message shown\"}}\n  resume(\"Reopen /s/#lt;id#gt;\")\n  new_research(\"Click 'New research'\")\n  visit --> basic_auth\n  basic_auth ==>|\"no\"| unauthorized\n  unauthorized -->|\"enters credentials\"| basic_auth\n  basic_auth -->|\"yes\"| home\n  home -->|\"types a question\"| send\n  send -->|\"first message\"| session_created\n  session_created -->|\"URL rewritten\"| streaming\n  streaming -->|\"clicks stop\"| cancel\n  streaming ==>|\"fails\"| turn_error\n  cancel ==>|\"cancel fails\"| turn_error\n  streaming -->|\"asks follow-up\"| send\n  streaming -->|\"reloads later\"| resume\n  resume -->|\"stream resumes\"| streaming\n  streaming -->|\"wants a new topic\"| new_research\n  new_research --> home\n  classDef entry fill:#cfe2ff,stroke:#0d6efd,color:#052c65\n  classDef logic fill:#f8f9fa,stroke:#6c757d,color:#212529\n  classDef data fill:#d1e7dd,stroke:#198754,color:#0a3622\n  classDef external fill:#e2d9f3,stroke:#6f42c1,color:#2c1a4d\n  classDef decision fill:#ffe5d0,stroke:#fd7e14,color:#58300a\n  classDef error fill:#f8d7da,stroke:#dc3545,color:#58151c\n  classDef ui fill:#cff4fc,stroke:#0dcaf0,color:#055160\n  classDef event fill:#f7d6e6,stroke:#d63384,color:#561435\n  class visit ui\n  click visit call cfvSelect(\"visit\")\n  class basic_auth decision\n  click basic_auth call cfvSelect(\"basic_auth\")\n  class unauthorized error\n  click unauthorized call cfvSelect(\"unauthorized\")\n  class home ui\n  click home call cfvSelect(\"home\")\n  class send ui\n  click send call cfvSelect(\"send\")\n  class session_created decision\n  click session_created call cfvSelect(\"session_created\")\n  class streaming ui\n  click streaming call cfvSelect(\"streaming\")\n  class cancel ui\n  click cancel call cfvSelect(\"cancel\")\n  class turn_error error\n  click turn_error call cfvSelect(\"turn_error\")\n  class resume ui\n  click resume call cfvSelect(\"resume\")\n  class new_research ui\n  click new_research call cfvSelect(\"new_research\")\n  linkStyle 1,8,9 stroke:#dc3545,stroke-width:2px"}]}</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>
 (function () {
@@ -113,9 +113,11 @@
       box.innerHTML = '<div class="p-3 text-danger">Mermaid failed to load (offline?). Mermaid source:</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
       return;
     }
-    const id = 'cfv-svg-' + (++renderSeq);
+    const seq = ++renderSeq;
+    const id = 'cfv-svg-' + seq;
     try {
       const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      if (seq !== renderSeq) return; // a newer flow was selected while this one rendered; drop the stale result
       box.innerHTML = svg;
       if (bindFunctions) bindFunctions(box);
       const el = box.querySelector('svg');
@@ -123,6 +125,7 @@
       if (panZoom) { try { panZoom.destroy(); } catch (e) {} }
       panZoom = window.svgPanZoom ? svgPanZoom(el, { controlIconsEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 10, dblClickZoomEnabled: false }) : null;
     } catch (err) {
+      if (seq !== renderSeq) return;
       box.innerHTML = '<div class="p-3 text-danger">Diagram error: ' + esc(err.message || err) + '</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
     }
   }
@@ -191,6 +194,15 @@
     history.replaceState(null, '', '#' + flow.id);
   }
 
+  // Switch to another flow from anywhere: go back to the Diagram tab first (so the diagram is
+  // rendered into a visible pane), then load that flow's data into every tab.
+  function openFlow(id) {
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show();
+    selectFlow(id);
+    const main = document.querySelector('main'); if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
   window.cfvSelect = function (nodeId) {
     bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
     document.querySelectorAll('.cfv-step').forEach(el => el.classList.remove('cfv-active'));
@@ -202,8 +214,7 @@
 
   document.addEventListener('click', (e) => {
     const s = e.target.closest('[data-step]'); if (s) { e.preventDefault(); cfvSelect(s.dataset.step); return; }
-    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); selectFlow(g.dataset.goto);
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show(); }
+    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); openFlow(g.dataset.goto); }
   });
 
   $('cfv-search').addEventListener('input', (e) => {
@@ -227,7 +238,7 @@
   $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
   $('cfv-flow-list').innerHTML = DATA.flows.map(f =>
     `<a class="list-group-item list-group-item-action" data-flow="${esc(f.id)}" onclick="return false">${esc(f.title)}<div class="small opacity-75">${f.steps.length} steps · ${f.mode === 'user' ? 'user' : 'code'}</div></a>`).join('');
-  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => selectFlow(el.dataset.flow)));
+  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => openFlow(el.dataset.flow)));
   initMermaid();
   selectFlow(location.hash.slice(1));
 })();

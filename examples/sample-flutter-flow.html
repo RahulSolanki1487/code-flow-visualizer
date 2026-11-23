@@ -81,7 +81,7 @@
 
 <script type="application/json" id="cfv-data">{"project": "sample-flutter-app", "generated_at": "2026-11-22", "flows": [{"id": "login_and_browse", "title": "Sign in and open an item (Flutter / go_router)", "mode": "user", "summary": "A global go_router redirect sends signed-out users to /login and signed-in users away from it. Signing in goes to the home list, tapping an item pushes the detail screen, and the floating button signs out.", "notes": ["authRepository, email and password in login_screen.dart and home_screen.dart are undeclared in this trimmed sample; a real app would inject them (Provider/Riverpod).", "The redirect reads auth.isLoggedIn but the router has no refreshListenable, so signing out does not re-run it; the explicit context.go('/login') does the navigation."], "steps": [{"id": "launch", "label": "App launch", "type": "ui", "file": "lib/router.dart", "line": 7, "description": "buildRouter starts at '/' and installs one redirect function that runs for every navigation.", "snippet": "GoRouter buildRouter(AuthRepository auth) {", "vscode": "", "outgoing": [{"to": "redirect", "label": "", "label_to": "Signed in?"}]}, {"id": "redirect", "label": "Signed in?", "type": "decision", "file": "lib/router.dart", "line": 10, "description": "Signed-out users going anywhere but /login are redirected to /login; signed-in users hitting /login go to /.", "snippet": "if (!loggedIn && !goingToLogin) return '/login';", "vscode": "", "outgoing": [{"to": "login", "label": "no: redirect /login", "label_to": "Login screen"}, {"to": "home", "label": "yes", "label_to": "Home list"}]}, {"id": "login", "label": "Login screen", "type": "ui", "file": "lib/screens/login_screen.dart", "line": 13, "description": "_submit calls AuthRepository.signIn.", "snippet": "await authRepository.signIn(email, password);", "vscode": "", "outgoing": [{"to": "sign_in", "label": "submits", "label_to": "AuthRepository.signIn"}]}, {"id": "home", "label": "Home list", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 4, "description": "Lists items; tapping one pushes /item/<id>. The floating button signs out.", "snippet": "class HomeScreen extends StatelessWidget {", "vscode": "", "outgoing": [{"to": "detail", "label": "taps item", "label_to": "Item detail"}, {"to": "sign_out", "label": "taps button", "label_to": "Sign out"}]}, {"id": "sign_in", "label": "AuthRepository.signIn", "type": "logic", "file": "lib/auth_repository.dart", "line": 6, "description": "Rejects passwords shorter than 8 characters, otherwise stores a token.", "snippet": "if (password.length < 8) {", "vscode": "", "outgoing": [{"to": "home", "label": "ok: context.go('/')", "label_to": "Home list"}, {"to": "login_error", "label": "AuthException", "label_to": "Show auth error"}]}, {"id": "detail", "label": "Item detail", "type": "ui", "file": "lib/screens/detail_screen.dart", "line": 4, "description": "Receives the id from the :id path parameter.", "snippet": "class DetailScreen extends StatelessWidget {", "vscode": "", "outgoing": []}, {"id": "sign_out", "label": "Sign out", "type": "ui", "file": "lib/screens/home_screen.dart", "line": 15, "description": "Clears the token and navigates to /login.", "snippet": "authRepository.signOut();", "vscode": "", "outgoing": [{"to": "login", "label": "", "label_to": "Login screen"}]}, {"id": "login_error", "label": "Show auth error", "type": "error", "file": "lib/screens/login_screen.dart", "line": 17, "description": "AuthException is caught and its message shown; the user stays on the login screen.", "snippet": "setState(() => error = e.message);", "vscode": "", "outgoing": [{"to": "login", "label": "tries again", "label_to": "Login screen"}]}], "mermaid": "flowchart TD\n  launch(\"App launch\")\n  redirect{\"Signed in?\"}\n  login(\"Login screen\")\n  sign_in[\"AuthRepository.signIn\"]\n  login_error{{\"Show auth error\"}}\n  home(\"Home list\")\n  detail(\"Item detail\")\n  sign_out(\"Sign out\")\n  launch --> redirect\n  redirect -->|\"no: redirect /login\"| login\n  redirect -->|\"yes\"| home\n  login -->|\"submits\"| sign_in\n  sign_in -->|\"ok: context.go('/')\"| home\n  sign_in ==>|\"AuthException\"| login_error\n  login_error -->|\"tries again\"| login\n  home -->|\"taps item\"| detail\n  home -->|\"taps button\"| sign_out\n  sign_out --> login\n  classDef entry fill:#cfe2ff,stroke:#0d6efd,color:#052c65\n  classDef logic fill:#f8f9fa,stroke:#6c757d,color:#212529\n  classDef data fill:#d1e7dd,stroke:#198754,color:#0a3622\n  classDef external fill:#e2d9f3,stroke:#6f42c1,color:#2c1a4d\n  classDef decision fill:#ffe5d0,stroke:#fd7e14,color:#58300a\n  classDef error fill:#f8d7da,stroke:#dc3545,color:#58151c\n  classDef ui fill:#cff4fc,stroke:#0dcaf0,color:#055160\n  classDef event fill:#f7d6e6,stroke:#d63384,color:#561435\n  class launch ui\n  click launch call cfvSelect(\"launch\")\n  class redirect decision\n  click redirect call cfvSelect(\"redirect\")\n  class login ui\n  click login call cfvSelect(\"login\")\n  class sign_in logic\n  click sign_in call cfvSelect(\"sign_in\")\n  class login_error error\n  click login_error call cfvSelect(\"login_error\")\n  class home ui\n  click home call cfvSelect(\"home\")\n  class detail ui\n  click detail call cfvSelect(\"detail\")\n  class sign_out ui\n  click sign_out call cfvSelect(\"sign_out\")\n  linkStyle 5 stroke:#dc3545,stroke-width:2px"}]}</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>
 (function () {
@@ -113,9 +113,11 @@
       box.innerHTML = '<div class="p-3 text-danger">Mermaid failed to load (offline?). Mermaid source:</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
       return;
     }
-    const id = 'cfv-svg-' + (++renderSeq);
+    const seq = ++renderSeq;
+    const id = 'cfv-svg-' + seq;
     try {
       const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      if (seq !== renderSeq) return; // a newer flow was selected while this one rendered; drop the stale result
       box.innerHTML = svg;
       if (bindFunctions) bindFunctions(box);
       const el = box.querySelector('svg');
@@ -123,6 +125,7 @@
       if (panZoom) { try { panZoom.destroy(); } catch (e) {} }
       panZoom = window.svgPanZoom ? svgPanZoom(el, { controlIconsEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 10, dblClickZoomEnabled: false }) : null;
     } catch (err) {
+      if (seq !== renderSeq) return;
       box.innerHTML = '<div class="p-3 text-danger">Diagram error: ' + esc(err.message || err) + '</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
     }
   }
@@ -191,6 +194,15 @@
     history.replaceState(null, '', '#' + flow.id);
   }
 
+  // Switch to another flow from anywhere: go back to the Diagram tab first (so the diagram is
+  // rendered into a visible pane), then load that flow's data into every tab.
+  function openFlow(id) {
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show();
+    selectFlow(id);
+    const main = document.querySelector('main'); if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
   window.cfvSelect = function (nodeId) {
     bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
     document.querySelectorAll('.cfv-step').forEach(el => el.classList.remove('cfv-active'));
@@ -202,8 +214,7 @@
 
   document.addEventListener('click', (e) => {
     const s = e.target.closest('[data-step]'); if (s) { e.preventDefault(); cfvSelect(s.dataset.step); return; }
-    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); selectFlow(g.dataset.goto);
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show(); }
+    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); openFlow(g.dataset.goto); }
   });
 
   $('cfv-search').addEventListener('input', (e) => {
@@ -227,7 +238,7 @@
   $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
   $('cfv-flow-list').innerHTML = DATA.flows.map(f =>
     `<a class="list-group-item list-group-item-action" data-flow="${esc(f.id)}" onclick="return false">${esc(f.title)}<div class="small opacity-75">${f.steps.length} steps · ${f.mode === 'user' ? 'user' : 'code'}</div></a>`).join('');
-  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => selectFlow(el.dataset.flow)));
+  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => openFlow(el.dataset.flow)));
   initMermaid();
   selectFlow(location.hash.slice(1));
 })();

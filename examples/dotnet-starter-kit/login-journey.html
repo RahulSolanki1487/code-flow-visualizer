@@ -81,7 +81,7 @@
 
 <script type="application/json" id="cfv-data">{"project": "dotnet-starter-kit", "generated_at": "2026-11-22", "flows": [{"id": "dashboard_login", "title": "Dashboard login journey (React)", "mode": "user", "summary": "A visitor hitting a protected page waits for a silent token refresh, is redirected to /login if there is no session, signs in (with an optional 2FA code step) and is sent back to the page they came from.", "notes": ["Silent refresh happens in AuthContext at boot (auth-context.tsx, isInitializing); its failure path was only skimmed.", "Demo-account sign-in (onPickDemo) goes through the same performLogin and is not drawn separately."], "steps": [{"id": "visit", "label": "Open protected page", "type": "ui", "file": "clients/dashboard/src/routes.tsx", "line": 170, "description": "All app pages sit under a route whose element is ProtectedRoute, so every visit passes through it first.", "snippet": "element: <ProtectedRoute />,", "vscode": "", "outgoing": [{"to": "init", "label": "", "label_to": "Restoring session?"}]}, {"id": "init", "label": "Restoring session?", "type": "decision", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 13, "description": "While isInitializing is true (silent refresh with a stored refresh token), a spinner shows. It neither flashes the dashboard nor bounces to /login yet.", "snippet": "if (isInitializing) {", "vscode": "", "outgoing": [{"to": "authed", "label": "done", "label_to": "Authenticated?"}]}, {"id": "authed", "label": "Authenticated?", "type": "decision", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 29, "description": "Unauthenticated visitors are redirected to /login, remembering the original location in router state.", "snippet": "return <Navigate to=\"/login\" replace state={{ from: location }} />;", "vscode": "", "outgoing": [{"to": "page", "label": "yes", "label_to": "Requested page"}, {"to": "login_page", "label": "no: redirect /login", "label_to": "Login page"}]}, {"id": "page", "label": "Requested page", "type": "ui", "file": "clients/dashboard/src/auth/protected-route.tsx", "line": 33, "description": "Outlet renders the requested child route.", "snippet": "return <Outlet />;", "vscode": "", "outgoing": []}, {"id": "login_page", "label": "Login page", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 66, "description": "Email, password and tenant form. Submitting calls performLogin. A visitor who is already authenticated is sent straight on.", "snippet": "const performLogin = async (creds: Credentials) => {", "vscode": "", "outgoing": [{"to": "login_call", "label": "submits form", "label_to": "login() API call"}]}, {"id": "login_call", "label": "login() API call", "type": "external", "file": "clients/dashboard/src/auth/auth-context.tsx", "line": 223, "description": "AuthContext.login calls the identity API, stores the tokens and clears cached query state.", "vscode": "", "outgoing": [{"to": "back", "label": "success", "label_to": "Back to origin page"}, {"to": "need_2fa", "label": "rejected", "label_to": "2FA required?"}]}, {"id": "back", "label": "Back to origin page", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 73, "description": "On success the user is navigated to the page they came from (or /), replacing the login entry in history.", "snippet": "navigate(from, { replace: true });", "vscode": "", "outgoing": [{"to": "page", "label": "", "label_to": "Requested page"}]}, {"id": "need_2fa", "label": "2FA required?", "type": "decision", "file": "clients/dashboard/src/pages/login.tsx", "line": 75, "description": "If the server says the password was right but 2FA is on, the credentials are held in component state and the code step is shown.", "snippet": "if (isTwoFactorRequiredError(err)) {", "vscode": "", "outgoing": [{"to": "code_step", "label": "yes", "label_to": "Enter 2FA code"}, {"to": "login_error", "label": "no", "label_to": "Show login error"}]}, {"id": "code_step", "label": "Enter 2FA code", "type": "ui", "file": "clients/dashboard/src/pages/login.tsx", "line": 94, "description": "verifyCode repeats login with the code. A wrong code clears the field and shows an error without leaving the step.", "snippet": "const verifyCode = async (attempt: Credentials & { twoFactorCode: string }) => {", "vscode": "", "outgoing": [{"to": "login_call", "label": "submits code", "label_to": "login() API call"}]}, {"id": "login_error", "label": "Show login error", "type": "error", "file": "clients/dashboard/src/pages/login.tsx", "line": 85, "description": "Any other failure shows the server's problem detail, or a generic message.", "snippet": "setError(errorMessage(err));", "vscode": "", "outgoing": [{"to": "login_page", "label": "tries again", "label_to": "Login page"}]}], "mermaid": "flowchart TD\n  visit(\"Open protected page\")\n  init{\"Restoring session?\"}\n  authed{\"Authenticated?\"}\n  page(\"Requested page\")\n  login_page(\"Login page\")\n  login_call[[\"login() API call\"]]\n  need_2fa{\"2FA required?\"}\n  code_step(\"Enter 2FA code\")\n  login_error{{\"Show login error\"}}\n  back(\"Back to origin page\")\n  visit --> init\n  init -->|\"done\"| authed\n  authed -->|\"yes\"| page\n  authed -->|\"no: redirect /login\"| login_page\n  login_page -->|\"submits form\"| login_call\n  login_call -->|\"success\"| back\n  login_call ==>|\"rejected\"| need_2fa\n  need_2fa -->|\"yes\"| code_step\n  need_2fa ==>|\"no\"| login_error\n  code_step -->|\"submits code\"| login_call\n  login_error -->|\"tries again\"| login_page\n  back --> page\n  classDef entry fill:#cfe2ff,stroke:#0d6efd,color:#052c65\n  classDef logic fill:#f8f9fa,stroke:#6c757d,color:#212529\n  classDef data fill:#d1e7dd,stroke:#198754,color:#0a3622\n  classDef external fill:#e2d9f3,stroke:#6f42c1,color:#2c1a4d\n  classDef decision fill:#ffe5d0,stroke:#fd7e14,color:#58300a\n  classDef error fill:#f8d7da,stroke:#dc3545,color:#58151c\n  classDef ui fill:#cff4fc,stroke:#0dcaf0,color:#055160\n  classDef event fill:#f7d6e6,stroke:#d63384,color:#561435\n  class visit ui\n  click visit call cfvSelect(\"visit\")\n  class init decision\n  click init call cfvSelect(\"init\")\n  class authed decision\n  click authed call cfvSelect(\"authed\")\n  class page ui\n  click page call cfvSelect(\"page\")\n  class login_page ui\n  click login_page call cfvSelect(\"login_page\")\n  class login_call external\n  click login_call call cfvSelect(\"login_call\")\n  class need_2fa decision\n  click need_2fa call cfvSelect(\"need_2fa\")\n  class code_step ui\n  click code_step call cfvSelect(\"code_step\")\n  class login_error error\n  click login_error call cfvSelect(\"login_error\")\n  class back ui\n  click back call cfvSelect(\"back\")\n  linkStyle 6,8 stroke:#dc3545,stroke-width:2px"}]}</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>
 (function () {
@@ -113,9 +113,11 @@
       box.innerHTML = '<div class="p-3 text-danger">Mermaid failed to load (offline?). Mermaid source:</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
       return;
     }
-    const id = 'cfv-svg-' + (++renderSeq);
+    const seq = ++renderSeq;
+    const id = 'cfv-svg-' + seq;
     try {
       const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      if (seq !== renderSeq) return; // a newer flow was selected while this one rendered; drop the stale result
       box.innerHTML = svg;
       if (bindFunctions) bindFunctions(box);
       const el = box.querySelector('svg');
@@ -123,6 +125,7 @@
       if (panZoom) { try { panZoom.destroy(); } catch (e) {} }
       panZoom = window.svgPanZoom ? svgPanZoom(el, { controlIconsEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 10, dblClickZoomEnabled: false }) : null;
     } catch (err) {
+      if (seq !== renderSeq) return;
       box.innerHTML = '<div class="p-3 text-danger">Diagram error: ' + esc(err.message || err) + '</div><pre class="cfv-snippet m-3">' + esc(flow.mermaid) + '</pre>';
     }
   }
@@ -191,6 +194,15 @@
     history.replaceState(null, '', '#' + flow.id);
   }
 
+  // Switch to another flow from anywhere: go back to the Diagram tab first (so the diagram is
+  // rendered into a visible pane), then load that flow's data into every tab.
+  function openFlow(id) {
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show();
+    selectFlow(id);
+    const main = document.querySelector('main'); if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
   window.cfvSelect = function (nodeId) {
     bootstrap.Tab.getOrCreateInstance($('cfv-steps-tab')).show();
     document.querySelectorAll('.cfv-step').forEach(el => el.classList.remove('cfv-active'));
@@ -202,8 +214,7 @@
 
   document.addEventListener('click', (e) => {
     const s = e.target.closest('[data-step]'); if (s) { e.preventDefault(); cfvSelect(s.dataset.step); return; }
-    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); selectFlow(g.dataset.goto);
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-diagram"]')).show(); }
+    const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); openFlow(g.dataset.goto); }
   });
 
   $('cfv-search').addEventListener('input', (e) => {
@@ -227,7 +238,7 @@
   $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
   $('cfv-flow-list').innerHTML = DATA.flows.map(f =>
     `<a class="list-group-item list-group-item-action" data-flow="${esc(f.id)}" onclick="return false">${esc(f.title)}<div class="small opacity-75">${f.steps.length} steps · ${f.mode === 'user' ? 'user' : 'code'}</div></a>`).join('');
-  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => selectFlow(el.dataset.flow)));
+  document.querySelectorAll('#cfv-flow-list .list-group-item').forEach(el => el.addEventListener('click', () => openFlow(el.dataset.flow)));
   initMermaid();
   selectFlow(location.hash.slice(1));
 })();

@@ -67,6 +67,7 @@
             <button class="btn btn-outline-secondary bg-body" id="cfv-zin">+</button>
             <button class="btn btn-outline-secondary bg-body" id="cfv-zout">&minus;</button>
             <button class="btn btn-outline-secondary bg-body" id="cfv-zfit">Fit</button>
+            <button class="btn btn-outline-secondary bg-body" id="cfv-layout" title="Change the diagram direction"></button>
           </div>
           <div id="cfv-diagram" class="h-100"></div>
         </div>
@@ -100,6 +101,8 @@
     decision: 'Decision', error: 'Error path', ui: 'Screen / UI', event: 'Event / queue'
   };
   let current = null, panZoom = null, renderSeq = 0;
+  let layout = null; // 'vertical' | 'horizontal' chosen by the reader; null = as the flow was written
+  const DIRECTION = { vertical: { flowchart: 'TD', state: 'TB' }, horizontal: { flowchart: 'LR', state: 'LR' } };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -112,6 +115,26 @@
       flowchart: { htmlLabels: true, curve: 'basis' } });
   }
 
+  const canRotate = (flow) => flow.diagram === 'flowchart' || flow.diagram === 'state';
+  function flowLayout(flow) { return layout || (/^(LR|RL)$/.test(flow.direction) ? 'horizontal' : 'vertical'); }
+
+  // The same diagram with its direction swapped; sequence diagrams only run top to bottom, so they are left alone.
+  function diagramSource(flow) {
+    if (!canRotate(flow)) return flow.mermaid;
+    const dir = DIRECTION[flowLayout(flow)][flow.diagram];
+    return flow.diagram === 'flowchart'
+      ? flow.mermaid.replace(/^flowchart\s+\w+/, 'flowchart ' + dir)
+      : flow.mermaid.replace(/^(\s*direction\s+)\w+/m, '$1' + dir);
+  }
+
+  function updateLayoutButton(flow) {
+    const btn = $('cfv-layout');
+    btn.classList.toggle('d-none', !canRotate(flow));
+    const horizontal = flowLayout(flow) === 'horizontal';
+    btn.textContent = horizontal ? 'Vertical' : 'Horizontal';
+    btn.title = horizontal ? 'Show the diagram top to bottom' : 'Show the diagram left to right';
+  }
+
   async function renderDiagram(flow) {
     const box = $('cfv-diagram');
     if (!window.mermaid) {
@@ -121,7 +144,7 @@
     const seq = ++renderSeq;
     const id = 'cfv-svg-' + seq;
     try {
-      const { svg, bindFunctions } = await mermaid.render(id, flow.mermaid);
+      const { svg, bindFunctions } = await mermaid.render(id, diagramSource(flow));
       if (seq !== renderSeq) return; // a newer flow was selected while this one rendered; drop the stale result
       box.innerHTML = svg;
       if (bindFunctions) bindFunctions(box);
@@ -212,6 +235,7 @@
     $('cfv-count').textContent = flow.steps.length + ' steps';
     $('cfv-summary').textContent = flow.summary || '';
     renderPlain(flow);
+    updateLayoutButton(flow);
     renderLegend(flow); renderSteps(flow); renderFiles(flow); renderNotes(flow); renderDiagram(flow);
     $('cfv-search').value = '';
     history.replaceState(null, '', '#' + flow.id);
@@ -254,9 +278,17 @@
   $('cfv-zin').onclick = () => panZoom && panZoom.zoomIn();
   $('cfv-zout').onclick = () => panZoom && panZoom.zoomOut();
   $('cfv-zfit').onclick = () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } };
+  $('cfv-layout').onclick = () => {
+    if (!current) return;
+    layout = flowLayout(current) === 'horizontal' ? 'vertical' : 'horizontal';
+    try { localStorage.setItem('cfv-layout', layout); } catch (e) {}
+    updateLayoutButton(current);
+    renderDiagram(current);
+  };
   document.querySelector('[data-bs-target="#tab-diagram"]').addEventListener('shown.bs.tab', () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } });
 
   try { const t = localStorage.getItem('cfv-theme'); if (t) document.documentElement.setAttribute('data-bs-theme', t); } catch (e) {}
+  try { const l = localStorage.getItem('cfv-layout'); if (l === 'vertical' || l === 'horizontal') layout = l; } catch (e) {}
   $('cfv-project').textContent = DATA.project || 'Project';
   $('cfv-generated').textContent = DATA.generated_at ? 'Generated ' + DATA.generated_at : '';
   $('cfv-flow-list').innerHTML = DATA.flows.map(f =>

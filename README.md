@@ -16,7 +16,7 @@ Ask your assistant things like:
 ## What you get
 
 - **"How it works" box** at the top of every page: the flow told in simple sentences that name every step exactly as the diagram labels it (`auth middleware`, `POST /products`), so a manager can match each sentence to a box; each name links to its step. Written by the assistant and checked by the validator (every step mentioned, no other code).
-- **Interactive diagram** (Mermaid, zoom and pan, dark mode). Click a node to jump to its step.
+- **Interactive diagram** (Mermaid, zoom and pan, dark mode). Click a node to jump to its step. A **Horizontal / Vertical** button turns flowcharts and state diagrams between top-to-bottom and left-to-right, which suits wide screens; the choice is remembered in the browser.
 - **Step-by-step walkthrough**: what happens, why it matters, the real code snippet and its `file:line`, with an "Open in VS Code" link.
 - **Error paths as first-class steps**, and a clear marker for hops that are *inferred* (dependency injection, event buses, proxies) with the reason.
 - **Several flows in one page**, linked to each other (a call-site step opens the backend flow; the backend entry step says who calls it).

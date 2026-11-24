@@ -24,6 +24,32 @@ Ask your assistant things like:
 
 Flow types: `code` (an entry point to its effects) and `user` (screens and actions); diagrams: flowchart, sequence and state.
 
+## What you can ask
+
+Anything of the form "show me how X works", where X is something the code does. The answer is a diagram, a "How it works" summary, step cards with real `file:line` references, and notes on anything that was inferred.
+
+| Type | Examples |
+|---|---|
+| A request or route | "What happens when `POST /orders` is called?" "Trace the login endpoint, including auth middleware and error paths." |
+| A screen or user journey | "Draw the login-to-checkout journey of this app." "What happens when a user clicks Save on the settings screen?" |
+| A lifecycle or state machine | "Give me a state diagram of an Invoice: Draft, Issued, Paid, Void." |
+| A background job or event | "What does the nightly sync job do?" "Show what happens when a message arrives on the orders queue." |
+| A CLI command or script | "Explain what `cli sync` does end to end." |
+| Across frontend and backend | "From the Insights screen in `web/` to the database in `api/`, what happens? Link the two flows." |
+| Several flows in one page | "Show create, update and delete for products on one page." |
+| Where to start | "What entry points does this repo have?" (lists routes, screens, commands and jobs) |
+| A version for non-developers | "Give me a version management can read." (the "How it works" box names every diagram step in plain sentences) |
+
+**Included in every answer:** the cross-cutting steps on the path (auth, middleware, validation, exception handlers), error paths as their own steps, and a marker on hops that are inferred (dependency injection, event buses, proxies) with the reason.
+
+**Less suited to**
+- **Finding bugs or reviewing code:** it shows how the code runs, not whether it is right or secure.
+- **Runtime facts:** it reads code and does not run it, so it knows nothing about timings, real data or production behaviour.
+- **Unusual frameworks and dynamic routing:** detection is heuristic; uncertain matches are marked `likely` or `inferred`, not guessed.
+- **Very large flows:** flows over 40 steps are split into linked pages.
+
+**Tips:** name an entry point (a route, screen or command) when you can; if you do not, it lists the entry points and asks. For two repositories, give both folders. If the skill does not start by itself, say "use the code-flow-visualizer skill".
+
 ## Why you can trust a page
 
 The assistant only does the analysis; scripts check it and render it, so the page is consistent and checkable.

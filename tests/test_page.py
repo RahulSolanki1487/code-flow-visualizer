@@ -25,6 +25,12 @@ def flow(i, marker):
             "edges": [{"from": "a", "to": "b"}]}
 
 
+def other_diagram(i, kind):
+    f = flow(i, f"N{i}")
+    f["diagram"] = kind
+    return f
+
+
 @pytest.fixture(scope="module")
 def sidebar_result(tmp_path_factory):
     if not shutil.which("node") or not JSDOM_DIR.is_dir():
@@ -32,7 +38,7 @@ def sidebar_result(tmp_path_factory):
     if not BOOTSTRAP.is_file():
         pytest.skip("Bootstrap vendor file missing (python scripts/fetch_vendor.py)")
     page = tmp_path_factory.mktemp("page") / "page.html"
-    page.write_text(render_page.render({"project": "p", "flows": [flow(1, "FIRST"), flow(2, "SECOND")]}), encoding="utf-8")
+    page.write_text(render_page.render({"project": "p", "flows": [flow(1, "FIRST"), flow(2, "SECOND"), other_diagram(3, "state"), other_diagram(4, "sequence")]}), encoding="utf-8")
     proc = subprocess.run(["node", str(ROOT / "tests" / "js" / "sidebar.mjs"), str(page), str(BOOTSTRAP), str(JSDOM_DIR)],
                           capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert proc.returncode == 0, proc.stderr[:500]
@@ -52,6 +58,18 @@ def test_clicking_a_flow_refreshes_the_data(sidebar_result):
 
 def test_a_slow_earlier_render_does_not_overwrite_the_latest_flow(sidebar_result):
     assert sidebar_result["diagramAfterRace"] == "second"
+
+
+def test_layout_button_flips_a_flowchart_between_vertical_and_horizontal_and_keeps_the_choice(sidebar_result):
+    assert sidebar_result["layoutStart"] == {"label": "Horizontal", "hidden": False, "first": "flowchart TD"}
+    assert sidebar_result["layoutHorizontal"] == {"label": "Vertical", "first": "flowchart LR"}
+    assert sidebar_result["layoutKeptOnNextFlow"] == {"label": "Vertical", "first": "flowchart LR"}   # another flow stays horizontal
+    assert sidebar_result["layoutBackToVertical"] == {"label": "Horizontal", "first": "flowchart TD"}
+
+
+def test_layout_button_also_turns_state_diagrams_and_is_hidden_for_sequence_diagrams(sidebar_result):
+    assert sidebar_result["stateVertical"]["line"] == "direction TB" and sidebar_result["stateHorizontal"]["line"] == "direction LR"
+    assert sidebar_result["sequenceButtonHidden"] is True
 
 
 def test_plain_words_names_the_diagram_steps_as_links_and_follows_the_selected_flow(sidebar_result):

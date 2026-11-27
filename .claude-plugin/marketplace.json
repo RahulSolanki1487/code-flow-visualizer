@@ -8,7 +8,7 @@
     {
       "name": "code-flow-visualizer",
       "source": "./plugins/code-flow-visualizer",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "description": "Trace how code runs, across frontend and backend repos, and render it as an interactive HTML flow page."
     }
   ]

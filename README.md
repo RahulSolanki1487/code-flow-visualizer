@@ -4,7 +4,7 @@ An agent skill for **[Claude](https://claude.com) and [GitHub Copilot](https://g
 an interactive diagram, a step-by-step walkthrough with `file:line` references, a file list and notes on anything uncertain.
 It also follows a request **across repositories**, from a frontend screen to the backend route it calls, and on to the database.
 
-![license](https://img.shields.io/badge/license-MIT-green) ![python](https://img.shields.io/badge/python-3.10%2B-blue) ![version](https://img.shields.io/badge/version-0.5.0-informational)
+![license](https://img.shields.io/badge/license-MIT-green) ![python](https://img.shields.io/badge/python-3.10%2B-blue) ![version](https://img.shields.io/badge/version-0.6.0-informational)
 
 Ask your assistant things like:
 
@@ -130,7 +130,7 @@ that first. The trigger tuning and the evals were run with Claude, so Copilot ma
 | No internet at the client | `python tools/package_skill.py --offline --fetch` → `dist/code-flow-visualizer-offline.zip` (Bootstrap, Mermaid and svg-pan-zoom included). Add `--offline` to `install_skill.py` / `build_plugin.py` too |
 | Own team plugin with other skills | `python tools/build_plugin.py --zip --extra-skills DIR [DIR ...]` → `dist/plugin/`; try it with `claude --plugin-dir dist/plugin/code-flow-visualizer` |
 
-Every packaging command validates `SKILL.md` first (name, description length, YAML, referenced files). The version is in `VERSION`.
+Every packaging command validates `SKILL.md` first (name, description length, YAML, referenced files). The version is in `VERSION` and the changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Use it
 
